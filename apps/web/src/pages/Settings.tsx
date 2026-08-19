@@ -59,20 +59,14 @@ export function Settings() {
     }
     setImporting(true);
     try {
-      const events = await api.get<any[]>(`/thesportsdb/schedule/${seasons[0].id}`);
-      if (events.length === 0) {
-        setMessage('No schedule data available from TheSportsDB for this season yet. Use manual entry.');
+      const result = await api.post<{ ok: boolean; imported: number; total: number; error?: string }>(
+        `/espn/import-schedule/${seasons[0].id}`,
+        {}
+      );
+      if (result.error) {
+        setMessage(result.error);
       } else {
-        for (const event of events) {
-          await api.post('/games', {
-            season_id: seasons[0].id,
-            week: parseInt(event.intRound) || 1,
-            home_team_id: null,
-            away_team_id: null,
-            game_time: event.strTimestamp,
-          });
-        }
-        setMessage(`Imported ${events.length} games from TheSportsDB. You may need to match teams manually.`);
+        setMessage(`Imported ${result.imported} of ${result.total} games from ESPN.`);
       }
     } catch (e: any) {
       setMessage(`Error importing: ${e.message}. Use manual entry.`);
@@ -167,8 +161,8 @@ export function Settings() {
 
           <div className="flex items-center justify-between">
             <div>
-              <p className="font-medium">Import Schedule from TheSportsDB</p>
-              <p className="text-sm text-gray-400">Fetch schedule for current season</p>
+              <p className="font-medium">Import Schedule from ESPN</p>
+              <p className="text-sm text-gray-400">Fetch full regular season schedule (all 18 weeks)</p>
             </div>
             <button
               onClick={importSchedule}

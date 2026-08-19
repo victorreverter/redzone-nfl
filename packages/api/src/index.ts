@@ -6,7 +6,7 @@ import { teamsRouter } from './routes/teams';
 import { gamesRouter } from './routes/games';
 import { predictionsRouter } from './routes/predictions';
 import { awardsRouter } from './routes/awards';
-import { thesportsdbRouter } from './routes/thesportsdb';
+import { espnRouter } from './routes/espn';
 
 const app = new Hono<{ Bindings: AppEnv['Bindings'] }>();
 
@@ -19,6 +19,6 @@ app.route('/teams', teamsRouter);
 app.route('/games', gamesRouter);
 app.route('/predictions', predictionsRouter);
 app.route('/awards', awardsRouter);
-app.route('/thesportsdb', thesportsdbRouter);
+app.route('/espn', espnRouter);
 
 export default app;
