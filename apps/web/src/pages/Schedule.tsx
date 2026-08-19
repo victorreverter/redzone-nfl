@@ -38,6 +38,7 @@ export function Schedule() {
   const [selectedWeek, setSelectedWeek] = useState(1);
   const [seasonId, setSeasonId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [savedGames, setSavedGames] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     async function load() {
@@ -89,6 +90,9 @@ export function Schedule() {
         ? { ...g, predicted_winner_team_id: winnerTeamId, predicted_home_score: homeScore ?? null, predicted_away_score: awayScore ?? null }
         : g
     ));
+
+    // Mark as saved
+    setSavedGames(prev => new Set(prev).add(gameId));
   }
 
   if (loading) {
@@ -125,6 +129,7 @@ export function Schedule() {
               key={game.id}
               game={game}
               onSave={savePrediction}
+              isSaved={savedGames.has(game.id)}
             />
           ))}
         </div>
@@ -133,7 +138,7 @@ export function Schedule() {
   );
 }
 
-function GameCard({ game, onSave }: { game: Game; onSave: (gameId: number, winnerId: number | null, hs?: number, as?: number) => void }) {
+function GameCard({ game, onSave, isSaved }: { game: Game; onSave: (gameId: number, winnerId: number | null, hs?: number, as?: number) => void; isSaved: boolean }) {
   const [homeScore, setHomeScore] = useState(game.predicted_home_score?.toString() ?? '');
   const [awayScore, setAwayScore] = useState(game.predicted_away_score?.toString() ?? '');
   const [selected, setSelected] = useState<number | null>(game.predicted_winner_team_id);
@@ -149,9 +154,9 @@ function GameCard({ game, onSave }: { game: Game; onSave: (gameId: number, winne
 
   return (
     <div className={`relative bg-dark-800 rounded-xl p-4 border-2 transition-all ${
-      hasPrediction ? 'border-green-500' : 'border-dark-600'
+      isSaved ? 'border-green-500' : 'border-dark-600'
     }`}>
-      {hasPrediction && (
+      {isSaved && (
         <div className="absolute top-2 right-2 bg-green-500 rounded-full p-1">
           <Check size={14} className="text-white" />
         </div>
@@ -186,7 +191,7 @@ function GameCard({ game, onSave }: { game: Game; onSave: (gameId: number, winne
         <div className="text-center">
           <div className="text-gray-500 text-sm mb-2">@</div>
           <button
-            onClick={() => setSelected(selected === null ? game.home_team_id : null)}
+            onClick={() => setSelected(null)}
             className={`text-xs px-2 py-1 rounded transition-all ${
               selected === null ? 'bg-gray-600 text-white' : 'bg-dark-700 text-gray-400 hover:bg-dark-600'
             }`}
@@ -230,7 +235,7 @@ function GameCard({ game, onSave }: { game: Game; onSave: (gameId: number, winne
           onClick={handleSave}
           disabled={saving}
           className={`ml-auto text-white text-sm px-4 py-1.5 rounded-lg transition-all ${
-            saving ? 'bg-gray-600' : hasPrediction ? 'bg-green-600 hover:bg-green-700' : 'bg-nfl-blue hover:bg-blue-800'
+            saving ? 'bg-gray-600' : 'bg-nfl-blue hover:bg-blue-800'
           }`}
         >
           {saving ? 'Saving...' : hasPrediction ? 'Update' : 'Save'}

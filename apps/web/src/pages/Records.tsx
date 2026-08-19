@@ -23,6 +23,8 @@ interface Team {
   division: string;
 }
 
+const MAX_GAMES = 17;
+
 export function Records() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [predictions, setPredictions] = useState<RecordPred[]>([]);
@@ -59,7 +61,26 @@ export function Records() {
     load();
   }, []);
 
-  async function saveAll() {
+  function updateRecord(teamId: number, field: 'wins' | 'losses', value: string) {
+    const current = records[teamId] ?? { wins: '', losses: '' };
+    const numValue = value === '' ? '' : Math.min(MAX_GAMES, Math.max(0, parseInt(value) || 0));
+    
+    if (field === 'wins') {
+      const winsNum = numValue === '' ? 0 : Number(numValue);
+      const lossesNum = current.losses === '' ? 0 : parseInt(current.losses) || 0;
+      const maxLosses = MAX_GAMES - winsNum;
+      const newLosses = lossesNum > maxLosses ? maxLosses.toString() : current.losses;
+      setRecords({ ...records, [teamId]: { wins: numValue.toString(), losses: newLosses } });
+    } else {
+      const lossesNum = numValue === '' ? 0 : Number(numValue);
+      const winsNum = current.wins === '' ? 0 : parseInt(current.wins) || 0;
+      const maxWins = MAX_GAMES - lossesNum;
+      const newWins = winsNum > maxWins ? maxWins.toString() : current.wins;
+      setRecords({ ...records, [teamId]: { wins: newWins, losses: numValue.toString() } });
+    }
+  }
+
+  async function handleSaveAll() {
     if (!seasonId) return;
     setSaving(true);
     const preds = Object.entries(records).map(([teamId, r]) => ({
@@ -72,7 +93,6 @@ export function Records() {
     setPredictions(updated);
     setSaving(false);
     setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
   }
 
   if (loading) {
@@ -87,7 +107,7 @@ export function Records() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl md:text-3xl font-bold">Team Record Predictions</h1>
         <button
-          onClick={saveAll}
+          onClick={handleSaveAll}
           disabled={saving}
           className={`text-white px-4 py-2 rounded-lg text-sm transition-all ${
             saved ? 'bg-green-600' : saving ? 'bg-gray-600' : 'bg-nfl-blue hover:bg-blue-800'
@@ -109,22 +129,30 @@ export function Records() {
               {divisions.map((div) => {
                 const divTeams = teams.filter((t) => t.conference === conf && t.division === div);
                 return (
-                  <div key={div} className="bg-dark-800 rounded-xl p-4 border border-dark-600">
-                    <h3 className="font-semibold text-sm text-gray-400 mb-3">{conf} {div}</h3>
+                  <div key={div} className={`bg-dark-800 rounded-xl p-4 border-2 transition-all ${
+                    saved ? 'border-green-500' : 'border-dark-600'
+                  }`}>
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="font-semibold text-sm text-gray-400">{conf} {div}</h3>
+                      {saved && (
+                        <div className="bg-green-500 rounded-full p-1">
+                          <Check size={12} className="text-white" />
+                        </div>
+                      )}
+                    </div>
                     <div className="space-y-3">
                       {divTeams.map((team) => {
                         const rec = records[team.id] ?? { wins: '', losses: '' };
-                        const pred = predictions.find((p) => p.team_id === team.id);
-                        const hasPrediction = pred || (rec.wins && rec.losses);
+                        const winsNum = rec.wins === '' ? 0 : parseInt(rec.wins) || 0;
+                        const lossesNum = rec.losses === '' ? 0 : parseInt(rec.losses) || 0;
+                        const maxLosses = MAX_GAMES - winsNum;
+                        const maxWins = MAX_GAMES - lossesNum;
+                        const hasPrediction = predictions.some(p => p.team_id === team.id);
+                        
                         return (
                           <div key={team.id} className={`relative p-2 rounded-lg transition-all ${
                             hasPrediction ? 'bg-dark-700 border border-green-500/30' : 'bg-dark-700'
                           }`}>
-                            {hasPrediction && (
-                              <div className="absolute top-1 right-1 bg-green-500 rounded-full p-0.5">
-                                <Check size={10} className="text-white" />
-                              </div>
-                            )}
                             <div className="flex items-center gap-2 mb-1">
                               {team.logo_url && (
                                 <img src={team.logo_url} alt={team.abbreviation} className="w-5 h-5 object-contain" />
@@ -135,20 +163,20 @@ export function Records() {
                               <input
                                 type="number"
                                 min="0"
-                                max="17"
+                                max={maxWins}
                                 placeholder="W"
                                 value={rec.wins}
-                                onChange={(e) => setRecords({ ...records, [team.id]: { ...rec, wins: e.target.value } })}
+                                onChange={(e) => updateRecord(team.id, 'wins', e.target.value)}
                                 className="w-16 bg-dark-800 border border-dark-500 rounded px-2 py-1 text-sm text-center"
                               />
                               <span className="text-gray-500">-</span>
                               <input
                                 type="number"
                                 min="0"
-                                max="17"
+                                max={maxLosses}
                                 placeholder="L"
                                 value={rec.losses}
-                                onChange={(e) => setRecords({ ...records, [team.id]: { ...rec, losses: e.target.value } })}
+                                onChange={(e) => updateRecord(team.id, 'losses', e.target.value)}
                                 className="w-16 bg-dark-800 border border-dark-500 rounded px-2 py-1 text-sm text-center"
                               />
                             </div>
