@@ -1,0 +1,11 @@
+{
+  "name": "@redzone/db",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "migrate": "wrangler d1 migrations apply redzone-db --local"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}

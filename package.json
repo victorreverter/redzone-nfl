@@ -1,0 +1,19 @@
+{
+  "name": "redzone-nfl",
+  "private": true,
+  "packageManager": "npm@10.0.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "db:migrate": "npm run migrate -w packages/db"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.0"
+  }
+}

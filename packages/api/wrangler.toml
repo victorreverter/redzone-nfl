@@ -1,0 +1,11 @@
+name = "redzone-nfl-api"
+main = "src/index.ts"
+compatibility_date = "2025-04-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "redzone-db"
+database_id = "placeholder-replace-after-creation"
+
+[vars]
+THE_SPORTS_DB_API_KEY = ""
