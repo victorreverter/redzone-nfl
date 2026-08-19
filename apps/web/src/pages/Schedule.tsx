@@ -33,7 +33,7 @@ export function Schedule() {
         if (seasons.length === 0) { setLoading(false); return; }
         setSeasonId(seasons[0].id);
 
-        const gamesData = await api.get<Game[]>(`/games/?season_id=${seasons[0].id}&week=${selectedWeek}`);
+        const gamesData = await api.get<Game[]>(`/games?season_id=${seasons[0].id}&week=${selectedWeek}`);
         setGames(gamesData);
       } catch {
         // API not ready
