@@ -8,10 +8,12 @@ interface Game {
   home_team_id: number;
   home_team_abbr: string;
   home_team_name: string;
+  home_team_city: string;
   home_team_logo: string | null;
   away_team_id: number;
   away_team_abbr: string;
   away_team_name: string;
+  away_team_city: string;
   away_team_logo: string | null;
   home_score: number | null;
   away_score: number | null;
@@ -152,7 +154,8 @@ function GameCard({ game, onSave, saved }: { game: Game; onSave: (gameId: number
           {game.home_team_logo && (
             <img src={game.home_team_logo} alt={game.home_team_abbr} className="w-10 h-10 mx-auto mb-1 object-contain" />
           )}
-          <span className="text-sm font-bold">{game.home_team_abbr}</span>
+          <span className="text-sm font-bold hidden md:block">{game.home_team_city} {game.home_team_name}</span>
+          <span className="text-sm font-bold md:hidden">{game.home_team_abbr}</span>
           {game.home_score !== null && <span className="block text-lg font-bold mt-1">{game.home_score}</span>}
         </button>
 
@@ -177,7 +180,8 @@ function GameCard({ game, onSave, saved }: { game: Game; onSave: (gameId: number
           {game.away_team_logo && (
             <img src={game.away_team_logo} alt={game.away_team_abbr} className="w-10 h-10 mx-auto mb-1 object-contain" />
           )}
-          <span className="text-sm font-bold">{game.away_team_abbr}</span>
+          <span className="text-sm font-bold hidden md:block">{game.away_team_city} {game.away_team_name}</span>
+          <span className="text-sm font-bold md:hidden">{game.away_team_abbr}</span>
           {game.away_score !== null && <span className="block text-lg font-bold mt-1">{game.away_score}</span>}
         </button>
       </div>

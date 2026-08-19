@@ -14,6 +14,7 @@ interface DivisionPred {
 interface Team {
   id: number;
   name: string;
+  city: string;
   abbreviation: string;
   conference: string;
   division: string;
@@ -48,13 +49,10 @@ export function Standings() {
 
   async function savePosition(teamId: number, position: number) {
     if (!seasonId) return;
-    const predictions_to_save = teams.map((t) => {
-      const pred = predictions.find((p) => p.team_id === t.id);
-      if (t.id === teamId) return { team_id: t.id, position };
-      if (pred && pred.predicted_position === position) return { team_id: t.id, position: pred.predicted_position };
-      return pred ? { team_id: t.id, position: pred.predicted_position } : null;
-    }).filter(Boolean) as { team_id: number; position: number }[];
-    await api.post('/predictions/division', { season_id: seasonId, predictions: predictions_to_save });
+    await api.post('/predictions/division', {
+      season_id: seasonId,
+      predictions: [{ team_id: teamId, position }],
+    });
     const updated = await api.get<DivisionPred[]>(`/predictions/division/${seasonId}`);
     setPredictions(updated);
   }
@@ -97,7 +95,9 @@ export function Standings() {
                             >
                               <option value="">Select team</option>
                               {divTeams.map((t) => (
-                                <option key={t.id} value={t.id}>{t.abbreviation} - {t.name}</option>
+                                <option key={t.id} value={t.id}>
+                                  {t.abbreviation} - {t.city} {t.name}
+                                </option>
                               ))}
                             </select>
                           </div>

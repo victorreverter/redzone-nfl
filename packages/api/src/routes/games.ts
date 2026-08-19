@@ -12,8 +12,8 @@ router.get('/', async (c) => {
 
   let query = `
     SELECT g.*, 
-           ht.abbreviation as home_team_abbr, ht.name as home_team_name, ht.logo_url as home_team_logo,
-           at.abbreviation as away_team_abbr, at.name as away_team_name, at.logo_url as away_team_logo
+           ht.abbreviation as home_team_abbr, ht.name as home_team_name, ht.city as home_team_city, ht.logo_url as home_team_logo,
+           at.abbreviation as away_team_abbr, at.name as away_team_name, at.city as away_team_city, at.logo_url as away_team_logo
     FROM games g
     JOIN teams ht ON g.home_team_id = ht.id
     JOIN teams at ON g.away_team_id = at.id
