@@ -39,7 +39,6 @@ export function Awards() {
   const [seasonId, setSeasonId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [forms, setForms] = useState<Record<string, { player_name: string; team_id: number | '' }>>({});
-  const [savedAwards, setSavedAwards] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     async function load() {
@@ -78,7 +77,6 @@ export function Awards() {
     });
     const updated = await api.get<AwardPred[]>(`/awards/${seasonId}`);
     setPredictions(updated);
-    setSavedAwards(prev => new Set(prev).add(awardType));
   }
 
   if (loading) {
@@ -94,13 +92,12 @@ export function Awards() {
         {AWARD_ORDER.map((type) => {
           const pred = predictions.find((p) => p.award_type === type);
           const form = forms[type] ?? { player_name: '', team_id: '' };
-          const isSaved = savedAwards.has(type);
           const hasPrediction = pred?.player_name !== undefined && pred?.player_name !== '';
           return (
             <div key={type} className={`relative bg-dark-800 rounded-xl p-4 border-2 transition-all ${
-              isSaved ? 'border-green-500' : 'border-dark-600'
+              hasPrediction ? 'border-green-500' : 'border-dark-600'
             }`}>
-              {isSaved && (
+              {hasPrediction && (
                 <div className="absolute top-2 right-2 bg-green-500 rounded-full p-1">
                   <Check size={14} className="text-white" />
                 </div>

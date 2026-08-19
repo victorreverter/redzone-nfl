@@ -32,7 +32,6 @@ export function Records() {
   const [loading, setLoading] = useState(true);
   const [records, setRecords] = useState<Record<number, { wins: string; losses: string }>>({});
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -92,7 +91,6 @@ export function Records() {
     const updated = await api.get<RecordPred[]>(`/predictions/records/${seasonId}`);
     setPredictions(updated);
     setSaving(false);
-    setSaved(true);
   }
 
   if (loading) {
@@ -110,10 +108,10 @@ export function Records() {
           onClick={handleSaveAll}
           disabled={saving}
           className={`text-white px-4 py-2 rounded-lg text-sm transition-all ${
-            saved ? 'bg-green-600' : saving ? 'bg-gray-600' : 'bg-nfl-blue hover:bg-blue-800'
+            saving ? 'bg-gray-600' : 'bg-nfl-blue hover:bg-blue-800'
           }`}
         >
-          {saving ? 'Saving...' : saved ? 'Saved!' : 'Save All'}
+          {saving ? 'Saving...' : 'Save All'}
         </button>
       </div>
 
@@ -128,13 +126,14 @@ export function Records() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {divisions.map((div) => {
                 const divTeams = teams.filter((t) => t.conference === conf && t.division === div);
+                const hasPredictions = divTeams.some(t => predictions.some(p => p.team_id === t.id));
                 return (
                   <div key={div} className={`bg-dark-800 rounded-xl p-4 border-2 transition-all ${
-                    saved ? 'border-green-500' : 'border-dark-600'
+                    hasPredictions ? 'border-green-500' : 'border-dark-600'
                   }`}>
                     <div className="flex items-center justify-between mb-3">
                       <h3 className="font-semibold text-sm text-gray-400">{conf} {div}</h3>
-                      {saved && (
+                      {hasPredictions && (
                         <div className="bg-green-500 rounded-full p-1">
                           <Check size={12} className="text-white" />
                         </div>

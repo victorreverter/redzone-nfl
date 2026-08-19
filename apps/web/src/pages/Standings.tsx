@@ -25,10 +25,10 @@ interface Team {
 
 export function Standings() {
   const [teams, setTeams] = useState<Team[]>([]);
+  const [predictions, setPredictions] = useState<DivisionPred[]>([]);
   const [seasonId, setSeasonId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [divisionOrders, setDivisionOrders] = useState<Record<string, number[]>>({});
-  const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const dragItem = useRef<{ divKey: string; index: number } | null>(null);
   const dragOverItem = useRef<{ divKey: string; index: number } | null>(null);
@@ -44,6 +44,7 @@ export function Standings() {
           api.get<DivisionPred[]>(`/predictions/division/${seasons[0].id}`),
         ]);
         setTeams(teamsData);
+        setPredictions(predsData);
 
         // Build initial division orders from predictions or default
         const orders: Record<string, number[]> = {};
@@ -100,7 +101,6 @@ export function Standings() {
     setDivisionOrders({ ...divisionOrders, [divKey]: list });
     dragItem.current = null;
     dragOverItem.current = null;
-    setSaved(false);
   }
 
   async function handleSaveAll() {
@@ -120,8 +120,10 @@ export function Standings() {
       predictions: allPredictions,
     });
 
+    // Reload predictions to show saved state
+    const updated = await api.get<DivisionPred[]>(`/predictions/division/${seasonId}`);
+    setPredictions(updated);
     setSaving(false);
-    setSaved(true);
   }
 
   if (loading) {
@@ -139,10 +141,10 @@ export function Standings() {
           onClick={handleSaveAll}
           disabled={saving}
           className={`text-white px-4 py-2 rounded-lg text-sm transition-all ${
-            saved ? 'bg-green-600' : saving ? 'bg-gray-600' : 'bg-nfl-blue hover:bg-blue-800'
+            saving ? 'bg-gray-600' : 'bg-nfl-blue hover:bg-blue-800'
           }`}
         >
-          {saving ? 'Saving...' : saved ? 'Saved!' : 'Save All'}
+          {saving ? 'Saving...' : 'Save All'}
         </button>
       </div>
 
@@ -159,14 +161,15 @@ export function Standings() {
                 const key = `${conf}-${div}`;
                 const teamIds = divisionOrders[key] || [];
                 const divTeams = teams.filter(t => t.conference === conf && t.division === div);
+                const hasPredictions = predictions.some(p => divTeams.some(t => t.id === p.team_id));
 
                 return (
                   <div key={div} className={`bg-dark-800 rounded-xl p-4 border-2 transition-all ${
-                    saved ? 'border-green-500' : 'border-dark-600'
+                    hasPredictions ? 'border-green-500' : 'border-dark-600'
                   }`}>
                     <div className="flex items-center justify-between mb-3">
                       <h3 className="font-semibold text-sm text-gray-400">{conf} {div}</h3>
-                      {saved && (
+                      {hasPredictions && (
                         <div className="bg-green-500 rounded-full p-1">
                           <Check size={12} className="text-white" />
                         </div>
