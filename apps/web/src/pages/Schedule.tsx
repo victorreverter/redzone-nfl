@@ -25,12 +25,19 @@ interface Game {
   points_earned: number;
 }
 
+interface Prediction {
+  game_id: number;
+  predicted_winner_team_id: number | null;
+  predicted_home_score: number | null;
+  predicted_away_score: number | null;
+  points_earned: number;
+}
+
 export function Schedule() {
   const [games, setGames] = useState<Game[]>([]);
   const [selectedWeek, setSelectedWeek] = useState(1);
   const [seasonId, setSeasonId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
-  const [savedGames, setSavedGames] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     async function load() {
@@ -39,8 +46,24 @@ export function Schedule() {
         if (seasons.length === 0) { setLoading(false); return; }
         setSeasonId(seasons[0].id);
 
-        const gamesData = await api.get<Game[]>(`/games?season_id=${seasons[0].id}&week=${selectedWeek}`);
-        setGames(gamesData);
+        const [gamesData, predictionsData] = await Promise.all([
+          api.get<Game[]>(`/games?season_id=${seasons[0].id}&week=${selectedWeek}`),
+          api.get<Prediction[]>(`/predictions/weekly/${seasons[0].id}?week=${selectedWeek}`),
+        ]);
+
+        // Merge predictions into games
+        const mergedGames = gamesData.map(game => {
+          const pred = predictionsData.find(p => p.game_id === game.id);
+          return pred ? {
+            ...game,
+            predicted_winner_team_id: pred.predicted_winner_team_id,
+            predicted_home_score: pred.predicted_home_score,
+            predicted_away_score: pred.predicted_away_score,
+            points_earned: pred.points_earned,
+          } : game;
+        });
+
+        setGames(mergedGames);
       } catch {
         // API not ready
       } finally {
@@ -59,14 +82,13 @@ export function Schedule() {
       predicted_home_score: homeScore ?? null,
       predicted_away_score: awayScore ?? null,
     });
-    setSavedGames(prev => new Set(prev).add(gameId));
-    setTimeout(() => {
-      setSavedGames(prev => {
-        const next = new Set(prev);
-        next.delete(gameId);
-        return next;
-      });
-    }, 2000);
+
+    // Update local state immediately
+    setGames(prev => prev.map(g =>
+      g.id === gameId
+        ? { ...g, predicted_winner_team_id: winnerTeamId, predicted_home_score: homeScore ?? null, predicted_away_score: awayScore ?? null }
+        : g
+    ));
   }
 
   if (loading) {
@@ -103,7 +125,6 @@ export function Schedule() {
               key={game.id}
               game={game}
               onSave={savePrediction}
-              saved={savedGames.has(game.id)}
             />
           ))}
         </div>
@@ -112,11 +133,13 @@ export function Schedule() {
   );
 }
 
-function GameCard({ game, onSave, saved }: { game: Game; onSave: (gameId: number, winnerId: number | null, hs?: number, as?: number) => void; saved: boolean }) {
+function GameCard({ game, onSave }: { game: Game; onSave: (gameId: number, winnerId: number | null, hs?: number, as?: number) => void }) {
   const [homeScore, setHomeScore] = useState(game.predicted_home_score?.toString() ?? '');
   const [awayScore, setAwayScore] = useState(game.predicted_away_score?.toString() ?? '');
   const [selected, setSelected] = useState<number | null>(game.predicted_winner_team_id);
   const [saving, setSaving] = useState(false);
+
+  const hasPrediction = game.predicted_winner_team_id !== null || game.predicted_home_score !== null || game.predicted_away_score !== null;
 
   async function handleSave() {
     setSaving(true);
@@ -125,23 +148,24 @@ function GameCard({ game, onSave, saved }: { game: Game; onSave: (gameId: number
   }
 
   return (
-    <div className="bg-dark-800 rounded-xl p-4 border border-dark-600">
+    <div className={`relative bg-dark-800 rounded-xl p-4 border-2 transition-all ${
+      hasPrediction ? 'border-green-500' : 'border-dark-600'
+    }`}>
+      {hasPrediction && (
+        <div className="absolute top-2 right-2 bg-green-500 rounded-full p-1">
+          <Check size={14} className="text-white" />
+        </div>
+      )}
+
       <div className="flex items-center justify-between mb-3">
         <span className="text-xs text-gray-500">
           {game.game_time ? new Date(game.game_time).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : 'TBD'}
         </span>
-        <div className="flex items-center gap-2">
-          {saved && (
-            <span className="text-xs bg-green-900 text-green-400 px-2 py-1 rounded-full flex items-center gap-1">
-              <Check size={12} /> Saved
-            </span>
-          )}
-          {game.points_earned > 0 && (
-            <span className="text-xs bg-green-900 text-green-400 px-2 py-1 rounded-full">
-              +{game.points_earned} pts
-            </span>
-          )}
-        </div>
+        {game.points_earned > 0 && (
+          <span className="text-xs bg-green-900 text-green-400 px-2 py-1 rounded-full">
+            +{game.points_earned} pts
+          </span>
+        )}
       </div>
 
       <div className="grid grid-cols-3 gap-2 items-center">
@@ -162,7 +186,7 @@ function GameCard({ game, onSave, saved }: { game: Game; onSave: (gameId: number
         <div className="text-center">
           <div className="text-gray-500 text-sm mb-2">@</div>
           <button
-            onClick={() => setSelected(null)}
+            onClick={() => setSelected(selected === null ? game.home_team_id : null)}
             className={`text-xs px-2 py-1 rounded transition-all ${
               selected === null ? 'bg-gray-600 text-white' : 'bg-dark-700 text-gray-400 hover:bg-dark-600'
             }`}
@@ -206,10 +230,10 @@ function GameCard({ game, onSave, saved }: { game: Game; onSave: (gameId: number
           onClick={handleSave}
           disabled={saving}
           className={`ml-auto text-white text-sm px-4 py-1.5 rounded-lg transition-all ${
-            saved ? 'bg-green-600' : saving ? 'bg-gray-600' : 'bg-nfl-blue hover:bg-blue-800'
+            saving ? 'bg-gray-600' : hasPrediction ? 'bg-green-600 hover:bg-green-700' : 'bg-nfl-blue hover:bg-blue-800'
           }`}
         >
-          {saving ? 'Saving...' : saved ? 'Saved!' : 'Save'}
+          {saving ? 'Saving...' : hasPrediction ? 'Update' : 'Save'}
         </button>
       </div>
     </div>

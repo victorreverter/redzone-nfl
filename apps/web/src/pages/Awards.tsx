@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api';
+import { Check } from 'lucide-react';
 
 interface AwardPred {
   id: number;
@@ -14,7 +15,9 @@ interface AwardPred {
 interface Team {
   id: number;
   name: string;
+  city: string;
   abbreviation: string;
+  logo_url: string | null;
 }
 
 const AWARD_LABELS: Record<string, string> = {
@@ -36,6 +39,7 @@ export function Awards() {
   const [seasonId, setSeasonId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [forms, setForms] = useState<Record<string, { player_name: string; team_id: number | '' }>>({});
+  const [savedAwards, setSavedAwards] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     async function load() {
@@ -45,16 +49,19 @@ export function Awards() {
         setSeasonId(seasons[0].id);
         const [predsData, teamsData] = await Promise.all([
           api.get<AwardPred[]>(`/awards/${seasons[0].id}`),
-          api.get<Team[]>('/teams/'),
+          api.get<Team[]>('/teams'),
         ]);
         setPredictions(predsData);
         setTeams(teamsData);
         const f: Record<string, { player_name: string; team_id: number | '' }> = {};
+        const saved = new Set<string>();
         for (const type of AWARD_ORDER) {
           const pred = predsData.find((p) => p.award_type === type);
           f[type] = { player_name: pred?.player_name ?? '', team_id: pred?.team_id ?? '' };
+          if (pred?.player_name) saved.add(type);
         }
         setForms(f);
+        setSavedAwards(saved);
       } catch {
         // not ready
       } finally {
@@ -74,6 +81,7 @@ export function Awards() {
     });
     const updated = await api.get<AwardPred[]>(`/awards/${seasonId}`);
     setPredictions(updated);
+    setSavedAwards(prev => new Set(prev).add(awardType));
   }
 
   if (loading) {
@@ -89,8 +97,16 @@ export function Awards() {
         {AWARD_ORDER.map((type) => {
           const pred = predictions.find((p) => p.award_type === type);
           const form = forms[type] ?? { player_name: '', team_id: '' };
+          const hasPrediction = savedAwards.has(type) || (form.player_name.trim() !== '');
           return (
-            <div key={type} className="bg-dark-800 rounded-xl p-4 border border-dark-600">
+            <div key={type} className={`relative bg-dark-800 rounded-xl p-4 border-2 transition-all ${
+              hasPrediction ? 'border-green-500' : 'border-dark-600'
+            }`}>
+              {hasPrediction && (
+                <div className="absolute top-2 right-2 bg-green-500 rounded-full p-1">
+                  <Check size={14} className="text-white" />
+                </div>
+              )}
               <div className="flex items-center justify-between mb-3">
                 <h2 className="font-semibold">{AWARD_LABELS[type]}</h2>
                 {pred?.locked ? (
@@ -116,15 +132,17 @@ export function Awards() {
                 >
                   <option value="">Select team (optional)</option>
                   {teams.map((t) => (
-                    <option key={t.id} value={t.id}>{t.abbreviation} - {t.name}</option>
+                    <option key={t.id} value={t.id}>{t.city} {t.name}</option>
                   ))}
                 </select>
                 <button
                   onClick={() => saveAward(type)}
                   disabled={!!pred?.locked}
-                  className="w-full bg-nfl-blue hover:bg-blue-800 disabled:opacity-50 text-white text-sm py-2 rounded-lg transition-colors"
+                  className={`w-full text-white text-sm py-2 rounded-lg transition-all ${
+                    hasPrediction ? 'bg-green-600 hover:bg-green-700' : 'bg-nfl-blue hover:bg-blue-800'
+                  } disabled:opacity-50`}
                 >
-                  Save
+                  {hasPrediction ? 'Update' : 'Save'}
                 </button>
               </div>
             </div>

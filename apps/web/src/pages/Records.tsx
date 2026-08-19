@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api';
+import { Check } from 'lucide-react';
 
 interface RecordPred {
   team_id: number;
@@ -7,6 +8,7 @@ interface RecordPred {
   predicted_losses: number;
   team_name: string;
   team_abbr: string;
+  team_logo: string | null;
   conference: string;
   division: string;
 }
@@ -14,7 +16,9 @@ interface RecordPred {
 interface Team {
   id: number;
   name: string;
+  city: string;
   abbreviation: string;
+  logo_url: string | null;
   conference: string;
   division: string;
 }
@@ -25,6 +29,8 @@ export function Records() {
   const [seasonId, setSeasonId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [records, setRecords] = useState<Record<number, { wins: string; losses: string }>>({});
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -33,7 +39,7 @@ export function Records() {
         if (seasons.length === 0) { setLoading(false); return; }
         setSeasonId(seasons[0].id);
         const [teamsData, predsData] = await Promise.all([
-          api.get<Team[]>('/teams/'),
+          api.get<Team[]>('/teams'),
           api.get<RecordPred[]>(`/predictions/records/${seasons[0].id}`),
         ]);
         setTeams(teamsData);
@@ -55,14 +61,18 @@ export function Records() {
 
   async function saveAll() {
     if (!seasonId) return;
+    setSaving(true);
     const preds = Object.entries(records).map(([teamId, r]) => ({
       team_id: Number(teamId),
       wins: Number(r.wins) || 0,
       losses: Number(r.losses) || 0,
-    }));
+    })).filter(p => p.wins > 0 || p.losses > 0);
     await api.post('/predictions/records', { season_id: seasonId, predictions: preds });
     const updated = await api.get<RecordPred[]>(`/predictions/records/${seasonId}`);
     setPredictions(updated);
+    setSaving(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
   }
 
   if (loading) {
@@ -78,9 +88,12 @@ export function Records() {
         <h1 className="text-2xl md:text-3xl font-bold">Team Record Predictions</h1>
         <button
           onClick={saveAll}
-          className="bg-nfl-blue hover:bg-blue-800 text-white px-4 py-2 rounded-lg text-sm transition-colors"
+          disabled={saving}
+          className={`text-white px-4 py-2 rounded-lg text-sm transition-all ${
+            saved ? 'bg-green-600' : saving ? 'bg-gray-600' : 'bg-nfl-blue hover:bg-blue-800'
+          }`}
         >
-          Save All
+          {saving ? 'Saving...' : saved ? 'Saved!' : 'Save All'}
         </button>
       </div>
 
@@ -102,9 +115,22 @@ export function Records() {
                       {divTeams.map((team) => {
                         const rec = records[team.id] ?? { wins: '', losses: '' };
                         const pred = predictions.find((p) => p.team_id === team.id);
+                        const hasPrediction = pred || (rec.wins && rec.losses);
                         return (
-                          <div key={team.id} className="space-y-1">
-                            <span className="text-sm font-medium">{team.abbreviation}</span>
+                          <div key={team.id} className={`relative p-2 rounded-lg transition-all ${
+                            hasPrediction ? 'bg-dark-700 border border-green-500/30' : 'bg-dark-700'
+                          }`}>
+                            {hasPrediction && (
+                              <div className="absolute top-1 right-1 bg-green-500 rounded-full p-0.5">
+                                <Check size={10} className="text-white" />
+                              </div>
+                            )}
+                            <div className="flex items-center gap-2 mb-1">
+                              {team.logo_url && (
+                                <img src={team.logo_url} alt={team.abbreviation} className="w-5 h-5 object-contain" />
+                              )}
+                              <span className="text-sm font-medium">{team.city} {team.name}</span>
+                            </div>
                             <div className="flex gap-2 items-center">
                               <input
                                 type="number"
@@ -113,7 +139,7 @@ export function Records() {
                                 placeholder="W"
                                 value={rec.wins}
                                 onChange={(e) => setRecords({ ...records, [team.id]: { ...rec, wins: e.target.value } })}
-                                className="w-16 bg-dark-700 border border-dark-500 rounded px-2 py-1 text-sm text-center"
+                                className="w-16 bg-dark-800 border border-dark-500 rounded px-2 py-1 text-sm text-center"
                               />
                               <span className="text-gray-500">-</span>
                               <input
@@ -123,12 +149,9 @@ export function Records() {
                                 placeholder="L"
                                 value={rec.losses}
                                 onChange={(e) => setRecords({ ...records, [team.id]: { ...rec, losses: e.target.value } })}
-                                className="w-16 bg-dark-700 border border-dark-500 rounded px-2 py-1 text-sm text-center"
+                                className="w-16 bg-dark-800 border border-dark-500 rounded px-2 py-1 text-sm text-center"
                               />
                             </div>
-                            {pred && (
-                              <span className="text-xs text-green-400">Saved: {pred.predicted_wins}-{pred.predicted_losses}</span>
-                            )}
                           </div>
                         );
                       })}
