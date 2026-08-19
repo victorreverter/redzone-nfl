@@ -129,7 +129,7 @@ export function Settings() {
                     onChange={(e) => updateStatus(s.id, e.target.value)}
                     className="bg-dark-600 border border-dark-500 rounded px-2 py-1 text-xs"
                   >
-                    <option value="setup">Setup</option>
+                    <option value="preparing">Preparing</option>
                     <option value="active">Active</option>
                     <option value="playoffs">Playoffs</option>
                     <option value="completed">Completed</option>

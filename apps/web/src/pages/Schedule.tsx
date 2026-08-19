@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api';
+import { Check } from 'lucide-react';
 
 interface Game {
   id: number;
@@ -7,9 +8,11 @@ interface Game {
   home_team_id: number;
   home_team_abbr: string;
   home_team_name: string;
+  home_team_logo: string | null;
   away_team_id: number;
   away_team_abbr: string;
   away_team_name: string;
+  away_team_logo: string | null;
   home_score: number | null;
   away_score: number | null;
   status: string;
@@ -25,6 +28,7 @@ export function Schedule() {
   const [selectedWeek, setSelectedWeek] = useState(1);
   const [seasonId, setSeasonId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [savedGames, setSavedGames] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     async function load() {
@@ -44,7 +48,7 @@ export function Schedule() {
     load();
   }, [selectedWeek]);
 
-  async function savePrediction(gameId: number, winnerTeamId: number, homeScore?: number, awayScore?: number) {
+  async function savePrediction(gameId: number, winnerTeamId: number | null, homeScore?: number, awayScore?: number) {
     if (!seasonId) return;
     await api.post('/predictions/weekly', {
       season_id: seasonId,
@@ -53,6 +57,14 @@ export function Schedule() {
       predicted_home_score: homeScore ?? null,
       predicted_away_score: awayScore ?? null,
     });
+    setSavedGames(prev => new Set(prev).add(gameId));
+    setTimeout(() => {
+      setSavedGames(prev => {
+        const next = new Set(prev);
+        next.delete(gameId);
+        return next;
+      });
+    }, 2000);
   }
 
   if (loading) {
@@ -89,6 +101,7 @@ export function Schedule() {
               key={game.id}
               game={game}
               onSave={savePrediction}
+              saved={savedGames.has(game.id)}
             />
           ))}
         </div>
@@ -97,10 +110,17 @@ export function Schedule() {
   );
 }
 
-function GameCard({ game, onSave }: { game: Game; onSave: (gameId: number, winnerId: number, hs?: number, as?: number) => void }) {
+function GameCard({ game, onSave, saved }: { game: Game; onSave: (gameId: number, winnerId: number | null, hs?: number, as?: number) => void; saved: boolean }) {
   const [homeScore, setHomeScore] = useState(game.predicted_home_score?.toString() ?? '');
   const [awayScore, setAwayScore] = useState(game.predicted_away_score?.toString() ?? '');
   const [selected, setSelected] = useState<number | null>(game.predicted_winner_team_id);
+  const [saving, setSaving] = useState(false);
+
+  async function handleSave() {
+    setSaving(true);
+    await onSave(game.id, selected, homeScore ? Number(homeScore) : undefined, awayScore ? Number(awayScore) : undefined);
+    setSaving(false);
+  }
 
   return (
     <div className="bg-dark-800 rounded-xl p-4 border border-dark-600">
@@ -108,32 +128,55 @@ function GameCard({ game, onSave }: { game: Game; onSave: (gameId: number, winne
         <span className="text-xs text-gray-500">
           {game.game_time ? new Date(game.game_time).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : 'TBD'}
         </span>
-        {game.points_earned > 0 && (
-          <span className="text-xs bg-green-900 text-green-400 px-2 py-1 rounded-full">
-            +{game.points_earned} pts
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          {saved && (
+            <span className="text-xs bg-green-900 text-green-400 px-2 py-1 rounded-full flex items-center gap-1">
+              <Check size={12} /> Saved
+            </span>
+          )}
+          {game.points_earned > 0 && (
+            <span className="text-xs bg-green-900 text-green-400 px-2 py-1 rounded-full">
+              +{game.points_earned} pts
+            </span>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-3 gap-2 items-center">
         <button
-          onClick={() => { setSelected(game.home_team_id); }}
-          className={`text-center p-2 rounded-lg transition-colors ${
-            selected === game.home_team_id ? 'bg-nfl-blue' : 'bg-dark-700 hover:bg-dark-600'
+          onClick={() => setSelected(game.home_team_id)}
+          className={`text-center p-3 rounded-lg transition-all ${
+            selected === game.home_team_id ? 'bg-nfl-blue ring-2 ring-nfl-blue' : 'bg-dark-700 hover:bg-dark-600'
           }`}
         >
+          {game.home_team_logo && (
+            <img src={game.home_team_logo} alt={game.home_team_abbr} className="w-10 h-10 mx-auto mb-1 object-contain" />
+          )}
           <span className="text-sm font-bold">{game.home_team_abbr}</span>
           {game.home_score !== null && <span className="block text-lg font-bold mt-1">{game.home_score}</span>}
         </button>
 
-        <div className="text-center text-gray-500 text-sm">@</div>
+        <div className="text-center">
+          <div className="text-gray-500 text-sm mb-2">@</div>
+          <button
+            onClick={() => setSelected(null)}
+            className={`text-xs px-2 py-1 rounded transition-all ${
+              selected === null ? 'bg-gray-600 text-white' : 'bg-dark-700 text-gray-400 hover:bg-dark-600'
+            }`}
+          >
+            Tie
+          </button>
+        </div>
 
         <button
-          onClick={() => { setSelected(game.away_team_id); }}
-          className={`text-center p-2 rounded-lg transition-colors ${
-            selected === game.away_team_id ? 'bg-nfl-blue' : 'bg-dark-700 hover:bg-dark-600'
+          onClick={() => setSelected(game.away_team_id)}
+          className={`text-center p-3 rounded-lg transition-all ${
+            selected === game.away_team_id ? 'bg-nfl-blue ring-2 ring-nfl-blue' : 'bg-dark-700 hover:bg-dark-600'
           }`}
         >
+          {game.away_team_logo && (
+            <img src={game.away_team_logo} alt={game.away_team_abbr} className="w-10 h-10 mx-auto mb-1 object-contain" />
+          )}
           <span className="text-sm font-bold">{game.away_team_abbr}</span>
           {game.away_score !== null && <span className="block text-lg font-bold mt-1">{game.away_score}</span>}
         </button>
@@ -156,14 +199,13 @@ function GameCard({ game, onSave }: { game: Game; onSave: (gameId: number, winne
           className="w-20 bg-dark-700 border border-dark-500 rounded px-2 py-1 text-sm text-center"
         />
         <button
-          onClick={() => {
-            if (selected) {
-              onSave(game.id, selected, homeScore ? Number(homeScore) : undefined, awayScore ? Number(awayScore) : undefined);
-            }
-          }}
-          className="ml-auto bg-nfl-blue hover:bg-blue-800 text-white text-sm px-4 py-1.5 rounded-lg transition-colors"
+          onClick={handleSave}
+          disabled={saving}
+          className={`ml-auto text-white text-sm px-4 py-1.5 rounded-lg transition-all ${
+            saved ? 'bg-green-600' : saving ? 'bg-gray-600' : 'bg-nfl-blue hover:bg-blue-800'
+          }`}
         >
-          Save
+          {saving ? 'Saving...' : saved ? 'Saved!' : 'Save'}
         </button>
       </div>
     </div>

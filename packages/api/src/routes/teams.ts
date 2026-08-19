@@ -33,51 +33,64 @@ router.post('/', async (c) => {
   return c.json({ id: result.meta.last_row_id }, 201);
 });
 
+router.post('/update-logos', async (c) => {
+  const { DB } = c.env;
+  const teams = getNflTeams();
+  let updated = 0;
+  for (const t of teams) {
+    const result = await DB.prepare(
+      'UPDATE teams SET logo_url = ? WHERE abbreviation = ?'
+    ).bind(t.logo, t.abbreviation).run();
+    if (result.meta.changes > 0) updated++;
+  }
+  return c.json({ ok: true, updated });
+});
+
 router.post('/seed', async (c) => {
   const { DB } = c.env;
   const teams = getNflTeams();
   for (const t of teams) {
     await DB.prepare(
-      'INSERT OR IGNORE INTO teams (name, abbreviation, city, conference, division) VALUES (?, ?, ?, ?, ?)'
-    ).bind(t.name, t.abbreviation, t.city, t.conference, t.division).run();
+      'INSERT OR IGNORE INTO teams (name, abbreviation, city, conference, division, logo_url) VALUES (?, ?, ?, ?, ?, ?)'
+    ).bind(t.name, t.abbreviation, t.city, t.conference, t.division, t.logo).run();
   }
   return c.json({ ok: true, count: teams.length });
 });
 
 function getNflTeams() {
   return [
-    { name: 'Cardinals', abbreviation: 'ARI', city: 'Arizona', conference: 'NFC', division: 'West' },
-    { name: 'Falcons', abbreviation: 'ATL', city: 'Atlanta', conference: 'NFC', division: 'South' },
-    { name: 'Ravens', abbreviation: 'BAL', city: 'Baltimore', conference: 'AFC', division: 'North' },
-    { name: 'Bills', abbreviation: 'BUF', city: 'Buffalo', conference: 'AFC', division: 'East' },
-    { name: 'Panthers', abbreviation: 'CAR', city: 'Carolina', conference: 'NFC', division: 'South' },
-    { name: 'Bears', abbreviation: 'CHI', city: 'Chicago', conference: 'NFC', division: 'North' },
-    { name: 'Bengals', abbreviation: 'CIN', city: 'Cincinnati', conference: 'AFC', division: 'North' },
-    { name: 'Browns', abbreviation: 'CLE', city: 'Cleveland', conference: 'AFC', division: 'North' },
-    { name: 'Cowboys', abbreviation: 'DAL', city: 'Dallas', conference: 'NFC', division: 'East' },
-    { name: 'Broncos', abbreviation: 'DEN', city: 'Denver', conference: 'AFC', division: 'West' },
-    { name: 'Lions', abbreviation: 'DET', city: 'Detroit', conference: 'NFC', division: 'North' },
-    { name: 'Packers', abbreviation: 'GB', city: 'Green Bay', conference: 'NFC', division: 'North' },
-    { name: 'Texans', abbreviation: 'HOU', city: 'Houston', conference: 'AFC', division: 'South' },
-    { name: 'Colts', abbreviation: 'IND', city: 'Indianapolis', conference: 'AFC', division: 'South' },
-    { name: 'Jaguars', abbreviation: 'JAX', city: 'Jacksonville', conference: 'AFC', division: 'South' },
-    { name: 'Chiefs', abbreviation: 'KC', city: 'Kansas City', conference: 'AFC', division: 'West' },
-    { name: 'Chargers', abbreviation: 'LAC', city: 'Los Angeles', conference: 'AFC', division: 'West' },
-    { name: 'Rams', abbreviation: 'LAR', city: 'Los Angeles', conference: 'NFC', division: 'West' },
-    { name: 'Dolphins', abbreviation: 'MIA', city: 'Miami', conference: 'AFC', division: 'East' },
-    { name: 'Vikings', abbreviation: 'MIN', city: 'Minnesota', conference: 'NFC', division: 'North' },
-    { name: 'Patriots', abbreviation: 'NE', city: 'New England', conference: 'AFC', division: 'East' },
-    { name: 'Saints', abbreviation: 'NO', city: 'New Orleans', conference: 'NFC', division: 'South' },
-    { name: 'Giants', abbreviation: 'NYG', city: 'New York', conference: 'NFC', division: 'East' },
-    { name: 'Jets', abbreviation: 'NYJ', city: 'New York', conference: 'AFC', division: 'East' },
-    { name: 'Eagles', abbreviation: 'PHI', city: 'Philadelphia', conference: 'NFC', division: 'East' },
-    { name: 'Steelers', abbreviation: 'PIT', city: 'Pittsburgh', conference: 'AFC', division: 'North' },
-    { name: '49ers', abbreviation: 'SF', city: 'San Francisco', conference: 'NFC', division: 'West' },
-    { name: 'Seahawks', abbreviation: 'SEA', city: 'Seattle', conference: 'NFC', division: 'West' },
-    { name: 'Buccaneers', abbreviation: 'TB', city: 'Tampa Bay', conference: 'NFC', division: 'South' },
-    { name: 'Titans', abbreviation: 'TEN', city: 'Tennessee', conference: 'AFC', division: 'South' },
-    { name: 'Commanders', abbreviation: 'WAS', city: 'Washington', conference: 'NFC', division: 'East' },
-    { name: 'Raiders', abbreviation: 'LV', city: 'Las Vegas', conference: 'AFC', division: 'West' },
+    { name: 'Cardinals', abbreviation: 'ARI', city: 'Arizona', conference: 'NFC', division: 'West', logo: 'https://a.espncdn.com/i/teamlogos/nfl/500/ari.png' },
+    { name: 'Falcons', abbreviation: 'ATL', city: 'Atlanta', conference: 'NFC', division: 'South', logo: 'https://a.espncdn.com/i/teamlogos/nfl/500/atl.png' },
+    { name: 'Ravens', abbreviation: 'BAL', city: 'Baltimore', conference: 'AFC', division: 'North', logo: 'https://a.espncdn.com/i/teamlogos/nfl/500/bal.png' },
+    { name: 'Bills', abbreviation: 'BUF', city: 'Buffalo', conference: 'AFC', division: 'East', logo: 'https://a.espncdn.com/i/teamlogos/nfl/500/buf.png' },
+    { name: 'Panthers', abbreviation: 'CAR', city: 'Carolina', conference: 'NFC', division: 'South', logo: 'https://a.espncdn.com/i/teamlogos/nfl/500/car.png' },
+    { name: 'Bears', abbreviation: 'CHI', city: 'Chicago', conference: 'NFC', division: 'North', logo: 'https://a.espncdn.com/i/teamlogos/nfl/500/chi.png' },
+    { name: 'Bengals', abbreviation: 'CIN', city: 'Cincinnati', conference: 'AFC', division: 'North', logo: 'https://a.espncdn.com/i/teamlogos/nfl/500/cin.png' },
+    { name: 'Browns', abbreviation: 'CLE', city: 'Cleveland', conference: 'AFC', division: 'North', logo: 'https://a.espncdn.com/i/teamlogos/nfl/500/cle.png' },
+    { name: 'Cowboys', abbreviation: 'DAL', city: 'Dallas', conference: 'NFC', division: 'East', logo: 'https://a.espncdn.com/i/teamlogos/nfl/500/dal.png' },
+    { name: 'Broncos', abbreviation: 'DEN', city: 'Denver', conference: 'AFC', division: 'West', logo: 'https://a.espncdn.com/i/teamlogos/nfl/500/den.png' },
+    { name: 'Lions', abbreviation: 'DET', city: 'Detroit', conference: 'NFC', division: 'North', logo: 'https://a.espncdn.com/i/teamlogos/nfl/500/det.png' },
+    { name: 'Packers', abbreviation: 'GB', city: 'Green Bay', conference: 'NFC', division: 'North', logo: 'https://a.espncdn.com/i/teamlogos/nfl/500/gb.png' },
+    { name: 'Texans', abbreviation: 'HOU', city: 'Houston', conference: 'AFC', division: 'South', logo: 'https://a.espncdn.com/i/teamlogos/nfl/500/hou.png' },
+    { name: 'Colts', abbreviation: 'IND', city: 'Indianapolis', conference: 'AFC', division: 'South', logo: 'https://a.espncdn.com/i/teamlogos/nfl/500/ind.png' },
+    { name: 'Jaguars', abbreviation: 'JAX', city: 'Jacksonville', conference: 'AFC', division: 'South', logo: 'https://a.espncdn.com/i/teamlogos/nfl/500/jac.png' },
+    { name: 'Chiefs', abbreviation: 'KC', city: 'Kansas City', conference: 'AFC', division: 'West', logo: 'https://a.espncdn.com/i/teamlogos/nfl/500/kc.png' },
+    { name: 'Chargers', abbreviation: 'LAC', city: 'Los Angeles', conference: 'AFC', division: 'West', logo: 'https://a.espncdn.com/i/teamlogos/nfl/500/lac.png' },
+    { name: 'Rams', abbreviation: 'LAR', city: 'Los Angeles', conference: 'NFC', division: 'West', logo: 'https://a.espncdn.com/i/teamlogos/nfl/500/lar.png' },
+    { name: 'Dolphins', abbreviation: 'MIA', city: 'Miami', conference: 'AFC', division: 'East', logo: 'https://a.espncdn.com/i/teamlogos/nfl/500/mia.png' },
+    { name: 'Vikings', abbreviation: 'MIN', city: 'Minnesota', conference: 'NFC', division: 'North', logo: 'https://a.espncdn.com/i/teamlogos/nfl/500/min.png' },
+    { name: 'Patriots', abbreviation: 'NE', city: 'New England', conference: 'AFC', division: 'East', logo: 'https://a.espncdn.com/i/teamlogos/nfl/500/ne.png' },
+    { name: 'Saints', abbreviation: 'NO', city: 'New Orleans', conference: 'NFC', division: 'South', logo: 'https://a.espncdn.com/i/teamlogos/nfl/500/no.png' },
+    { name: 'Giants', abbreviation: 'NYG', city: 'New York', conference: 'NFC', division: 'East', logo: 'https://a.espncdn.com/i/teamlogos/nfl/500/nyg.png' },
+    { name: 'Jets', abbreviation: 'NYJ', city: 'New York', conference: 'AFC', division: 'East', logo: 'https://a.espncdn.com/i/teamlogos/nfl/500/nyj.png' },
+    { name: 'Eagles', abbreviation: 'PHI', city: 'Philadelphia', conference: 'NFC', division: 'East', logo: 'https://a.espncdn.com/i/teamlogos/nfl/500/phi.png' },
+    { name: 'Steelers', abbreviation: 'PIT', city: 'Pittsburgh', conference: 'AFC', division: 'North', logo: 'https://a.espncdn.com/i/teamlogos/nfl/500/pit.png' },
+    { name: '49ers', abbreviation: 'SF', city: 'San Francisco', conference: 'NFC', division: 'West', logo: 'https://a.espncdn.com/i/teamlogos/nfl/500/sf.png' },
+    { name: 'Seahawks', abbreviation: 'SEA', city: 'Seattle', conference: 'NFC', division: 'West', logo: 'https://a.espncdn.com/i/teamlogos/nfl/500/sea.png' },
+    { name: 'Buccaneers', abbreviation: 'TB', city: 'Tampa Bay', conference: 'NFC', division: 'South', logo: 'https://a.espncdn.com/i/teamlogos/nfl/500/tb.png' },
+    { name: 'Titans', abbreviation: 'TEN', city: 'Tennessee', conference: 'AFC', division: 'South', logo: 'https://a.espncdn.com/i/teamlogos/nfl/500/ten.png' },
+    { name: 'Commanders', abbreviation: 'WAS', city: 'Washington', conference: 'NFC', division: 'East', logo: 'https://a.espncdn.com/i/teamlogos/nfl/500/wsh.png' },
+    { name: 'Raiders', abbreviation: 'LV', city: 'Las Vegas', conference: 'AFC', division: 'West', logo: 'https://a.espncdn.com/i/teamlogos/nfl/500/lv.png' },
   ];
 }
 
