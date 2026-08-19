@@ -39,6 +39,7 @@ export function Awards() {
   const [seasonId, setSeasonId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [forms, setForms] = useState<Record<string, { player_name: string; team_id: number | '' }>>({});
+  const [savedAwards, setSavedAwards] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     async function load() {
@@ -58,6 +59,15 @@ export function Awards() {
           f[type] = { player_name: pred?.player_name ?? '', team_id: pred?.team_id ?? '' };
         }
         setForms(f);
+        
+        // Track which awards have saved predictions
+        const saved = new Set<string>();
+        for (const pred of predsData) {
+          if (pred.player_name && pred.player_name.trim() !== '') {
+            saved.add(pred.award_type);
+          }
+        }
+        setSavedAwards(saved);
       } catch {
         // not ready
       } finally {
@@ -77,6 +87,7 @@ export function Awards() {
     });
     const updated = await api.get<AwardPred[]>(`/awards/${seasonId}`);
     setPredictions(updated);
+    setSavedAwards(prev => new Set(prev).add(awardType));
   }
 
   if (loading) {
@@ -92,12 +103,12 @@ export function Awards() {
         {AWARD_ORDER.map((type) => {
           const pred = predictions.find((p) => p.award_type === type);
           const form = forms[type] ?? { player_name: '', team_id: '' };
-          const hasPrediction = pred?.player_name !== undefined && pred?.player_name !== '';
+          const isSaved = savedAwards.has(type);
           return (
             <div key={type} className={`relative bg-dark-800 rounded-xl p-4 border-2 transition-all ${
-              hasPrediction ? 'border-green-500' : 'border-dark-600'
+              isSaved ? 'border-green-500' : 'border-dark-600'
             }`}>
-              {hasPrediction && (
+              {isSaved && (
                 <div className="absolute top-2 right-2 bg-green-500 rounded-full p-1">
                   <Check size={14} className="text-white" />
                 </div>
@@ -135,7 +146,7 @@ export function Awards() {
                   disabled={!!pred?.locked}
                   className="w-full bg-nfl-blue hover:bg-blue-800 disabled:opacity-50 text-white text-sm py-2 rounded-lg transition-colors"
                 >
-                  {hasPrediction ? 'Update' : 'Save'}
+                  {isSaved ? 'Update' : 'Save'}
                 </button>
               </div>
             </div>

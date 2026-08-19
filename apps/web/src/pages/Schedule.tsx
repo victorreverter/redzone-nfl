@@ -38,6 +38,7 @@ export function Schedule() {
   const [selectedWeek, setSelectedWeek] = useState(1);
   const [seasonId, setSeasonId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [savedGames, setSavedGames] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     async function load() {
@@ -64,6 +65,8 @@ export function Schedule() {
         });
 
         setGames(mergedGames);
+        // Track which games have saved predictions
+        setSavedGames(new Set(predictionsData.map(p => p.game_id)));
       } catch {
         // API not ready
       } finally {
@@ -89,6 +92,9 @@ export function Schedule() {
         ? { ...g, predicted_winner_team_id: winnerTeamId, predicted_home_score: homeScore ?? null, predicted_away_score: awayScore ?? null }
         : g
     ));
+    
+    // Mark as saved
+    setSavedGames(prev => new Set(prev).add(gameId));
   }
 
   if (loading) {
@@ -125,6 +131,7 @@ export function Schedule() {
               key={game.id}
               game={game}
               onSave={savePrediction}
+              isSaved={savedGames.has(game.id)}
             />
           ))}
         </div>
@@ -133,13 +140,11 @@ export function Schedule() {
   );
 }
 
-function GameCard({ game, onSave }: { game: Game; onSave: (gameId: number, winnerId: number | null, hs?: number, as?: number) => void }) {
+function GameCard({ game, onSave, isSaved }: { game: Game; onSave: (gameId: number, winnerId: number | null, hs?: number, as?: number) => void; isSaved: boolean }) {
   const [homeScore, setHomeScore] = useState(game.predicted_home_score?.toString() ?? '');
   const [awayScore, setAwayScore] = useState(game.predicted_away_score?.toString() ?? '');
   const [selected, setSelected] = useState<number | null>(game.predicted_winner_team_id);
   const [saving, setSaving] = useState(false);
-
-  const hasPrediction = game.predicted_winner_team_id !== null || game.predicted_home_score !== null || game.predicted_away_score !== null;
 
   async function handleSave() {
     setSaving(true);
@@ -149,9 +154,9 @@ function GameCard({ game, onSave }: { game: Game; onSave: (gameId: number, winne
 
   return (
     <div className={`relative bg-dark-800 rounded-xl p-4 border-2 transition-all ${
-      hasPrediction ? 'border-green-500' : 'border-dark-600'
+      isSaved ? 'border-green-500' : 'border-dark-600'
     }`}>
-      {hasPrediction && (
+      {isSaved && (
         <div className="absolute top-2 right-2 bg-green-500 rounded-full p-1">
           <Check size={14} className="text-white" />
         </div>
@@ -233,7 +238,7 @@ function GameCard({ game, onSave }: { game: Game; onSave: (gameId: number, winne
             saving ? 'bg-gray-600' : 'bg-nfl-blue hover:bg-blue-800'
           }`}
         >
-          {saving ? 'Saving...' : hasPrediction ? 'Update' : 'Save'}
+          {saving ? 'Saving...' : isSaved ? 'Update' : 'Save'}
         </button>
       </div>
     </div>

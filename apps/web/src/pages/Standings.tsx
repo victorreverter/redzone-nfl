@@ -25,11 +25,11 @@ interface Team {
 
 export function Standings() {
   const [teams, setTeams] = useState<Team[]>([]);
-  const [predictions, setPredictions] = useState<DivisionPred[]>([]);
   const [seasonId, setSeasonId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [divisionOrders, setDivisionOrders] = useState<Record<string, number[]>>({});
   const [saving, setSaving] = useState(false);
+  const [savedDivisions, setSavedDivisions] = useState<Set<string>>(new Set());
   const dragItem = useRef<{ divKey: string; index: number } | null>(null);
   const dragOverItem = useRef<{ divKey: string; index: number } | null>(null);
 
@@ -44,7 +44,6 @@ export function Standings() {
           api.get<DivisionPred[]>(`/predictions/division/${seasons[0].id}`),
         ]);
         setTeams(teamsData);
-        setPredictions(predsData);
 
         // Build initial division orders from predictions or default
         const orders: Record<string, number[]> = {};
@@ -68,6 +67,20 @@ export function Standings() {
           }
         }
         setDivisionOrders(orders);
+        
+        // Track which divisions have saved predictions
+        const saved = new Set<string>();
+        for (const conf of conferences) {
+          for (const div of divisions) {
+            const key = `${conf}-${div}`;
+            const divTeams = teamsData.filter(t => t.conference === conf && t.division === div);
+            const divPreds = predsData.filter(p => divTeams.some(t => t.id === p.team_id));
+            if (divPreds.length === 4) {
+              saved.add(key);
+            }
+          }
+        }
+        setSavedDivisions(saved);
       } catch {
         // not ready
       } finally {
@@ -120,10 +133,14 @@ export function Standings() {
       predictions: allPredictions,
     });
 
-    // Reload predictions to show saved state
-    const updated = await api.get<DivisionPred[]>(`/predictions/division/${seasonId}`);
-    setPredictions(updated);
     setSaving(false);
+    
+    // Mark all divisions as saved
+    const allSaved = new Set<string>();
+    for (const key of Object.keys(divisionOrders)) {
+      allSaved.add(key);
+    }
+    setSavedDivisions(allSaved);
   }
 
   if (loading) {
@@ -161,15 +178,15 @@ export function Standings() {
                 const key = `${conf}-${div}`;
                 const teamIds = divisionOrders[key] || [];
                 const divTeams = teams.filter(t => t.conference === conf && t.division === div);
-                const hasPredictions = predictions.some(p => divTeams.some(t => t.id === p.team_id));
+                const isSaved = savedDivisions.has(key);
 
                 return (
                   <div key={div} className={`bg-dark-800 rounded-xl p-4 border-2 transition-all ${
-                    hasPredictions ? 'border-green-500' : 'border-dark-600'
+                    isSaved ? 'border-green-500' : 'border-dark-600'
                   }`}>
                     <div className="flex items-center justify-between mb-3">
                       <h3 className="font-semibold text-sm text-gray-400">{conf} {div}</h3>
-                      {hasPredictions && (
+                      {isSaved && (
                         <div className="bg-green-500 rounded-full p-1">
                           <Check size={12} className="text-white" />
                         </div>

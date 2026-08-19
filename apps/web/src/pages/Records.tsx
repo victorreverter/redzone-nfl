@@ -27,11 +27,12 @@ const MAX_GAMES = 17;
 
 export function Records() {
   const [teams, setTeams] = useState<Team[]>([]);
-  const [predictions, setPredictions] = useState<RecordPred[]>([]);
   const [seasonId, setSeasonId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [records, setRecords] = useState<Record<number, { wins: string; losses: string }>>({});
   const [saving, setSaving] = useState(false);
+  const [savedDivisions, setSavedDivisions] = useState<Set<string>>(new Set());
+  const [savedTeams, setSavedTeams] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     async function load() {
@@ -44,13 +45,37 @@ export function Records() {
           api.get<RecordPred[]>(`/predictions/records/${seasons[0].id}`),
         ]);
         setTeams(teamsData);
-        setPredictions(predsData);
         const r: Record<number, { wins: string; losses: string }> = {};
         for (const t of teamsData) {
           const pred = predsData.find((p) => p.team_id === t.id);
           r[t.id] = { wins: pred?.predicted_wins?.toString() ?? '', losses: pred?.predicted_losses?.toString() ?? '' };
         }
         setRecords(r);
+        
+        // Track which divisions have saved predictions
+        const saved = new Set<string>();
+        const conferences = ['AFC', 'NFC'];
+        const divisions = ['East', 'North', 'South', 'West'];
+        for (const conf of conferences) {
+          for (const div of divisions) {
+            const key = `${conf}-${div}`;
+            const divTeams = teamsData.filter(t => t.conference === conf && t.division === div);
+            const hasPreds = divTeams.some(t => predsData.some(p => p.team_id === t.id && (p.predicted_wins > 0 || p.predicted_losses > 0)));
+            if (hasPreds) {
+              saved.add(key);
+            }
+          }
+        }
+        setSavedDivisions(saved);
+        
+        // Track which teams have saved predictions
+        const savedTeamsSet = new Set<number>();
+        for (const pred of predsData) {
+          if (pred.predicted_wins > 0 || pred.predicted_losses > 0) {
+            savedTeamsSet.add(pred.team_id);
+          }
+        }
+        setSavedTeams(savedTeamsSet);
       } catch {
         // not ready
       } finally {
@@ -88,9 +113,27 @@ export function Records() {
       losses: Number(r.losses) || 0,
     })).filter(p => p.wins > 0 || p.losses > 0);
     await api.post('/predictions/records', { season_id: seasonId, predictions: preds });
-    const updated = await api.get<RecordPred[]>(`/predictions/records/${seasonId}`);
-    setPredictions(updated);
     setSaving(false);
+    
+    // Mark all divisions as saved
+    const allSaved = new Set<string>();
+    const conferences = ['AFC', 'NFC'];
+    const divisions = ['East', 'North', 'South', 'West'];
+    for (const conf of conferences) {
+      for (const div of divisions) {
+        allSaved.add(`${conf}-${div}`);
+      }
+    }
+    setSavedDivisions(allSaved);
+    
+    // Mark all teams with predictions as saved
+    const allTeamsSaved = new Set<number>();
+    for (const pred of preds) {
+      if (pred.wins > 0 || pred.losses > 0) {
+        allTeamsSaved.add(pred.team_id);
+      }
+    }
+    setSavedTeams(allTeamsSaved);
   }
 
   if (loading) {
@@ -125,15 +168,16 @@ export function Records() {
             <h2 className="text-xl font-bold text-nfl-blue mb-3">{conf}</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {divisions.map((div) => {
+                const key = `${conf}-${div}`;
                 const divTeams = teams.filter((t) => t.conference === conf && t.division === div);
-                const hasPredictions = divTeams.some(t => predictions.some(p => p.team_id === t.id));
+                const isSaved = savedDivisions.has(key);
                 return (
                   <div key={div} className={`bg-dark-800 rounded-xl p-4 border-2 transition-all ${
-                    hasPredictions ? 'border-green-500' : 'border-dark-600'
+                    isSaved ? 'border-green-500' : 'border-dark-600'
                   }`}>
                     <div className="flex items-center justify-between mb-3">
                       <h3 className="font-semibold text-sm text-gray-400">{conf} {div}</h3>
-                      {hasPredictions && (
+                      {isSaved && (
                         <div className="bg-green-500 rounded-full p-1">
                           <Check size={12} className="text-white" />
                         </div>
@@ -146,11 +190,11 @@ export function Records() {
                         const lossesNum = rec.losses === '' ? 0 : parseInt(rec.losses) || 0;
                         const maxLosses = MAX_GAMES - winsNum;
                         const maxWins = MAX_GAMES - lossesNum;
-                        const hasPrediction = predictions.some(p => p.team_id === team.id);
+                        const isTeamSaved = savedTeams.has(team.id);
                         
                         return (
                           <div key={team.id} className={`relative p-2 rounded-lg transition-all ${
-                            hasPrediction ? 'bg-dark-700 border border-green-500/30' : 'bg-dark-700'
+                            isTeamSaved ? 'bg-dark-700 border border-green-500/30' : 'bg-dark-700'
                           }`}>
                             <div className="flex items-center gap-2 mb-1">
                               {team.logo_url && (
