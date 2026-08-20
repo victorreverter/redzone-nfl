@@ -243,11 +243,6 @@ function GameCard({ game, onSave, isSaved }: { game: Game; onSave: (gameId: numb
           )}
           <span className="text-sm font-bold hidden md:block">{game.home_team_city} {game.home_team_name}</span>
           <span className="text-sm font-bold md:hidden">{game.home_team_abbr}</span>
-          {isFinal && actualHomeScore !== null && (
-            <span className={`block text-lg font-bold mt-1 ${exactScore ? 'text-green-400' : ''}`}>
-              {actualHomeScore}
-            </span>
-          )}
         </button>
 
         <div className="text-center">
@@ -260,9 +255,6 @@ function GameCard({ game, onSave, isSaved }: { game: Game; onSave: (gameId: numb
           >
             Tie
           </button>
-          {isFinal && actualHomeScore === actualAwayScore && (
-            <div className="text-xs text-green-400 mt-1">Actual: Tie</div>
-          )}
         </div>
 
         <button
@@ -276,11 +268,6 @@ function GameCard({ game, onSave, isSaved }: { game: Game; onSave: (gameId: numb
           )}
           <span className="text-sm font-bold hidden md:block">{game.away_team_city} {game.away_team_name}</span>
           <span className="text-sm font-bold md:hidden">{game.away_team_abbr}</span>
-          {isFinal && actualAwayScore !== null && (
-            <span className={`block text-lg font-bold mt-1 ${exactScore ? 'text-green-400' : ''}`}>
-              {actualAwayScore}
-            </span>
-          )}
         </button>
       </div>
 

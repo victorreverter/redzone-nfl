@@ -172,7 +172,7 @@ export function Standings() {
       ) : (
         conferences.map((conf) => (
           <div key={conf}>
-            <h2 className="text-xl font-bold text-nfl-blue mb-3">{conf}</h2>
+            <h2 className="text-2xl font-bold text-white mb-3 pb-2 border-b-2 border-nfl-blue">{conf}</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {divisions.map((div) => {
                 const key = `${conf}-${div}`;

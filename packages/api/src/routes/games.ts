@@ -102,4 +102,21 @@ router.post('/:id/result', async (c) => {
   return c.json({ ok: true, points_earned: pred?.points_earned ?? 0 });
 });
 
+router.delete('/:id', async (c) => {
+  const { DB } = c.env;
+  const id = c.req.param('id');
+  
+  // Delete associated predictions first
+  await DB.prepare('DELETE FROM predictions_weekly WHERE game_id = ?').bind(id).run();
+  
+  // Delete the game
+  const result = await DB.prepare('DELETE FROM games WHERE id = ?').bind(id).run();
+  
+  if (result.meta.changes === 0) {
+    return c.json({ error: 'Game not found' }, 404);
+  }
+  
+  return c.json({ ok: true });
+});
+
 export { router as gamesRouter };

@@ -109,11 +109,11 @@ export function Awards() {
               isSaved ? 'border-green-500' : 'border-dark-600'
             }`}>
               {isSaved && (
-                <div className="absolute top-2 right-2 bg-green-500 rounded-full p-1">
+                <div className="absolute -top-2 -right-2 bg-green-500 rounded-full p-1.5 shadow-lg">
                   <Check size={14} className="text-white" />
                 </div>
               )}
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center justify-between mb-3 pr-6">
                 <h2 className="font-semibold">{AWARD_LABELS[type]}</h2>
                 {pred?.locked ? (
                   <span className="text-xs bg-red-900 text-red-400 px-2 py-1 rounded-full">Locked</span>
