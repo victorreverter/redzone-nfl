@@ -87,30 +87,30 @@ export function Settings() {
 
   return (
     <div className="space-y-6 max-w-2xl">
-      <h1 className="text-2xl md:text-3xl font-bold">Settings</h1>
+      <h1 className="text-3xl md:text-4xl font-serif font-bold gradient-text">Settings</h1>
 
       {message && (
-        <div className="bg-dark-700 border border-dark-500 rounded-lg p-3 text-sm">
+        <div className="bg-gridiron-surface border border-nfl-blue rounded-lg p-3 text-sm text-text-primary neumorphic">
           {message}
         </div>
       )}
 
-      <div className="bg-dark-800 rounded-xl p-6 border border-dark-600 space-y-4">
-        <h2 className="text-lg font-semibold">Season Setup</h2>
+      <div className="bg-gridiron-surface rounded-xl p-6 border border-gridiron-border neumorphic space-y-4">
+        <h2 className="text-lg font-serif font-semibold text-text-primary">Season Setup</h2>
 
         <div className="flex gap-3 items-end">
           <div>
-            <label className="block text-sm text-gray-400 mb-1">Season Year</label>
+            <label className="block text-sm text-text-secondary mb-1">Season Year</label>
             <input
               type="number"
               value={year}
               onChange={(e) => setYear(Number(e.target.value))}
-              className="bg-dark-700 border border-dark-500 rounded-lg px-3 py-2 w-32"
+              className="bg-gridiron-bg border border-gridiron-border rounded-lg px-3 py-2 w-32 text-text-primary"
             />
           </div>
           <button
             onClick={createSeason}
-            className="bg-nfl-blue hover:bg-blue-800 text-white px-4 py-2 rounded-lg text-sm transition-colors"
+            className="bg-gradient-to-r from-nfl-red to-nfl-blue hover:shadow-glow text-white px-4 py-2 rounded-lg text-sm transition-all"
           >
             Create Season
           </button>
@@ -118,16 +118,16 @@ export function Settings() {
 
         {seasons.length > 0 && (
           <div className="space-y-2">
-            <h3 className="text-sm font-medium text-gray-400">Existing Seasons</h3>
+            <h3 className="text-sm font-medium text-text-secondary">Existing Seasons</h3>
             {seasons.map((s) => (
-              <div key={s.id} className="flex items-center justify-between bg-dark-700 rounded-lg p-3">
-                <span>{s.year} Season</span>
+              <div key={s.id} className="flex items-center justify-between bg-gridiron-surface-hover rounded-lg p-3">
+                <span className="text-text-primary">{s.year} Season</span>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs bg-dark-600 px-2 py-1 rounded">{s.status}</span>
+                  <span className="text-xs bg-gridiron-border px-2 py-1 rounded text-text-primary">{s.status}</span>
                   <select
                     value={s.status}
                     onChange={(e) => updateStatus(s.id, e.target.value)}
-                    className="bg-dark-600 border border-dark-500 rounded px-2 py-1 text-xs"
+                    className="bg-gridiron-bg border border-gridiron-border rounded px-2 py-1 text-xs text-text-primary"
                   >
                     <option value="preparing">Preparing</option>
                     <option value="active">Active</option>
@@ -141,19 +141,19 @@ export function Settings() {
         )}
       </div>
 
-      <div className="bg-dark-800 rounded-xl p-6 border border-dark-600 space-y-4">
-        <h2 className="text-lg font-semibold">Data Management</h2>
+      <div className="bg-gridiron-surface rounded-xl p-6 border border-gridiron-border neumorphic space-y-4">
+        <h2 className="text-lg font-serif font-semibold text-text-primary">Data Management</h2>
 
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div>
-              <p className="font-medium">Seed NFL Teams</p>
-              <p className="text-sm text-gray-400">Add all 32 NFL teams to the database</p>
+              <p className="font-medium text-text-primary">Seed NFL Teams</p>
+              <p className="text-sm text-text-secondary">Add all 32 NFL teams to the database</p>
             </div>
             <button
               onClick={seedTeams}
               disabled={seeding}
-              className="bg-green-700 hover:bg-green-800 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm transition-colors"
+              className="bg-nfl-green hover:shadow-glow-green disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm transition-all"
             >
               {seeding ? 'Seeding...' : 'Seed Teams'}
             </button>
@@ -161,13 +161,13 @@ export function Settings() {
 
           <div className="flex items-center justify-between">
             <div>
-              <p className="font-medium">Import Schedule from ESPN</p>
-              <p className="text-sm text-gray-400">Fetch full regular season schedule (all 18 weeks)</p>
+              <p className="font-medium text-text-primary">Import Schedule from ESPN</p>
+              <p className="text-sm text-text-secondary">Fetch full regular season schedule (all 18 weeks)</p>
             </div>
             <button
               onClick={importSchedule}
               disabled={importing}
-              className="bg-purple-700 hover:bg-purple-800 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm transition-colors"
+              className="bg-nfl-blue hover:shadow-glow disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm transition-all"
             >
               {importing ? 'Importing...' : 'Import Schedule'}
             </button>
@@ -175,13 +175,13 @@ export function Settings() {
         </div>
       </div>
 
-      <div className="bg-dark-800 rounded-xl p-6 border border-dark-600 space-y-3">
-        <h2 className="text-lg font-semibold">About</h2>
-        <p className="text-sm text-gray-400">
+      <div className="bg-gridiron-surface rounded-xl p-6 border border-gridiron-border neumorphic space-y-3">
+        <h2 className="text-lg font-serif font-semibold text-text-primary">About</h2>
+        <p className="text-sm text-text-secondary">
           Redzone NFL Predictions - Track your NFL season predictions including division winners,
           weekly game winners, playoff brackets, awards, and team records.
         </p>
-        <p className="text-sm text-gray-400">
+        <p className="text-sm text-text-secondary">
           Scoring: Exact score = 5pts, Correct winner only = 1pt
         </p>
       </div>

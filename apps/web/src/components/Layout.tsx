@@ -17,15 +17,15 @@ export function Layout({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex flex-col min-h-dvh">
-      <header className="bg-dark-800 border-b border-dark-600 sticky top-0 z-50">
-        <div className="flex items-center justify-between px-4 h-14">
+      <header className="bg-gridiron-surface border-b border-gridiron-border sticky top-0 z-50 neumorphic">
+        <div className="flex items-center justify-between px-4 h-16">
           <NavLink to="/" className="flex items-center gap-2">
-            <span className="text-2xl">🏈</span>
-            <span className="font-bold text-lg text-white">Redzone NFL</span>
+            <span className="text-3xl">🏈</span>
+            <span className="font-serif font-bold text-xl text-text-primary">Redzone NFL</span>
           </NavLink>
           <button
             onClick={() => setOpen(!open)}
-            className="p-2 text-gray-400 hover:text-white lg:hidden"
+            className="p-2 text-text-secondary hover:text-text-primary lg:hidden transition-colors"
           >
             {open ? <X size={24} /> : <Menu size={24} />}
           </button>
@@ -35,11 +35,11 @@ export function Layout({ children }: { children: ReactNode }) {
       <div className="flex flex-1">
         <nav
           className={`
-            fixed inset-y-0 left-0 z-40 w-64 bg-dark-800 border-r border-dark-600 
+            fixed inset-y-0 left-0 z-40 w-64 bg-gridiron-surface border-r border-gridiron-border 
             transform transition-transform duration-200 ease-in-out
             lg:translate-x-0 lg:static lg:w-56 lg:flex-shrink-0
             ${open ? 'translate-x-0' : '-translate-x-full'}
-            pt-14 lg:pt-0
+            pt-16 lg:pt-0
           `}
         >
           <div className="p-4 space-y-1">
@@ -49,10 +49,10 @@ export function Layout({ children }: { children: ReactNode }) {
                 to={item.to}
                 onClick={() => setOpen(false)}
                 className={({ isActive }) =>
-                  `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                  `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
                     isActive
-                      ? 'bg-nfl-blue text-white'
-                      : 'text-gray-400 hover:text-white hover:bg-dark-700'
+                      ? 'bg-gradient-to-r from-nfl-red to-nfl-blue text-white shadow-glow'
+                      : 'text-text-secondary hover:text-text-primary hover:bg-gridiron-surface-hover'
                   }`
                 }
                 end={item.to === '/'}
@@ -66,7 +66,7 @@ export function Layout({ children }: { children: ReactNode }) {
 
         {open && (
           <div
-            className="fixed inset-0 bg-black/50 z-30 lg:hidden"
+            className="fixed inset-0 bg-black/70 z-30 lg:hidden"
             onClick={() => setOpen(false)}
           />
         )}

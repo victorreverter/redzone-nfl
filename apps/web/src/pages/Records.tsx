@@ -146,12 +146,12 @@ export function Records() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl md:text-3xl font-bold">Team Record Predictions</h1>
+        <h1 className="text-3xl md:text-4xl font-serif font-bold gradient-text">Team Record Predictions</h1>
         <button
           onClick={handleSaveAll}
           disabled={saving}
           className={`text-white px-4 py-2 rounded-lg text-sm transition-all ${
-            saving ? 'bg-gray-600' : 'bg-nfl-blue hover:bg-blue-800'
+            saving ? 'bg-text-muted' : 'bg-gradient-to-r from-nfl-red to-nfl-blue hover:shadow-glow'
           }`}
         >
           {saving ? 'Saving...' : 'Save All'}
@@ -159,13 +159,13 @@ export function Records() {
       </div>
 
       {teams.length === 0 ? (
-        <div className="bg-dark-800 rounded-xl p-8 border border-dark-600 text-center text-gray-400">
+        <div className="bg-gridiron-surface rounded-xl p-8 border border-gridiron-border text-center text-text-secondary neumorphic">
           Seed teams first in Settings
         </div>
       ) : (
         conferences.map((conf) => (
           <div key={conf}>
-            <h2 className="text-xl font-bold text-nfl-blue mb-3">{conf}</h2>
+            <h2 className="text-3xl font-serif font-bold text-text-primary mb-4 pb-2 border-b-2 border-nfl-blue">{conf}</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {divisions.map((div) => {
                 const key = `${conf}-${div}`;
@@ -185,13 +185,13 @@ export function Records() {
                   });
                 const isSaved = savedDivisions.has(key);
                 return (
-                  <div key={div} className={`bg-dark-800 rounded-xl p-4 border-2 transition-all ${
-                    isSaved ? 'border-green-500' : 'border-dark-600'
+                  <div key={div} className={`bg-gridiron-surface rounded-xl p-4 border-2 transition-all neumorphic ${
+                    isSaved ? 'border-nfl-green shadow-glow-green' : 'border-gridiron-border'
                   }`}>
                     <div className="flex items-center justify-between mb-3">
-                      <h3 className="font-semibold text-sm text-gray-400">{conf} {div}</h3>
+                      <h3 className="font-semibold text-sm text-text-secondary">{conf} {div}</h3>
                       {isSaved && (
-                        <div className="bg-green-500 rounded-full p-1">
+                        <div className="bg-nfl-green rounded-full p-1 animate-check">
                           <Check size={12} className="text-white" />
                         </div>
                       )}
@@ -206,14 +206,14 @@ export function Records() {
                         const isTeamSaved = savedTeams.has(team.id);
                         
                         return (
-                          <div key={team.id} className={`relative p-2 rounded-lg transition-all ${
-                            isTeamSaved ? 'bg-dark-700 border border-green-500/30' : 'bg-dark-700'
+                          <div key={team.id} className={`relative p-3 rounded-lg transition-all ${
+                            isTeamSaved ? 'bg-gridiron-surface-hover border border-nfl-green/30' : 'bg-gridiron-surface-hover'
                           }`}>
-                            <div className="flex items-center gap-2 mb-1">
+                            <div className="flex items-center gap-2 mb-2">
                               {team.logo_url && (
-                                <img src={team.logo_url} alt={team.abbreviation} className="w-5 h-5 object-contain" />
+                                <img src={team.logo_url} alt={team.abbreviation} className="w-6 h-6 object-contain" />
                               )}
-                              <span className="text-sm font-medium">{team.city} {team.name}</span>
+                              <span className="text-sm font-medium text-text-primary">{team.city} {team.name}</span>
                             </div>
                             <div className="flex gap-2 items-center">
                               <input
@@ -223,9 +223,9 @@ export function Records() {
                                 placeholder="W"
                                 value={rec.wins}
                                 onChange={(e) => updateRecord(team.id, 'wins', e.target.value)}
-                                className="w-16 bg-dark-800 border border-dark-500 rounded px-2 py-1 text-sm text-center"
+                                className="w-16 bg-gridiron-bg border border-gridiron-border rounded px-2 py-1 text-sm text-center text-text-primary font-mono"
                               />
-                              <span className="text-gray-500">-</span>
+                              <span className="text-text-muted font-mono">-</span>
                               <input
                                 type="number"
                                 min="0"
@@ -233,7 +233,7 @@ export function Records() {
                                 placeholder="L"
                                 value={rec.losses}
                                 onChange={(e) => updateRecord(team.id, 'losses', e.target.value)}
-                                className="w-16 bg-dark-800 border border-dark-500 rounded px-2 py-1 text-sm text-center"
+                                className="w-16 bg-gridiron-bg border border-gridiron-border rounded px-2 py-1 text-sm text-center text-text-primary font-mono"
                               />
                             </div>
                           </div>

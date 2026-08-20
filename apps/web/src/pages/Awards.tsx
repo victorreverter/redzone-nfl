@@ -96,8 +96,8 @@ export function Awards() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl md:text-3xl font-bold">Award Predictions</h1>
-      <p className="text-gray-400 text-sm">Lock date: Week before NFL announcement</p>
+      <h1 className="text-3xl md:text-4xl font-serif font-bold gradient-text">Award Predictions</h1>
+      <p className="text-text-secondary text-sm">Lock date: Week before NFL announcement</p>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {AWARD_ORDER.map((type) => {
@@ -105,21 +105,21 @@ export function Awards() {
           const form = forms[type] ?? { player_name: '', team_id: '' };
           const isSaved = savedAwards.has(type);
           return (
-            <div key={type} className={`relative bg-dark-800 rounded-xl p-4 border-2 transition-all ${
-              isSaved ? 'border-green-500' : 'border-dark-600'
+            <div key={type} className={`relative bg-gridiron-surface rounded-xl p-4 border-2 transition-all neumorphic ${
+              isSaved ? 'border-nfl-green shadow-glow-green' : 'border-gridiron-border'
             }`}>
               <div className="flex items-center justify-between mb-3">
-                <h2 className="font-semibold">{AWARD_LABELS[type]}</h2>
+                <h2 className="font-serif font-semibold text-text-primary">{AWARD_LABELS[type]}</h2>
                 <div className="flex items-center gap-2">
                   {isSaved && (
-                    <div className="bg-green-500 rounded-full p-1">
+                    <div className="bg-nfl-green rounded-full p-1 animate-check">
                       <Check size={12} className="text-white" />
                     </div>
                   )}
                   {pred?.locked ? (
-                    <span className="text-xs bg-red-900 text-red-400 px-2 py-1 rounded-full">Locked</span>
+                    <span className="text-xs bg-nfl-red/20 text-nfl-red px-2 py-1 rounded-full font-mono">Locked</span>
                   ) : (
-                    <span className="text-xs bg-green-900 text-green-400 px-2 py-1 rounded-full">Open</span>
+                    <span className="text-xs bg-nfl-green/20 text-nfl-green px-2 py-1 rounded-full font-mono">Open</span>
                   )}
                 </div>
               </div>
@@ -129,13 +129,13 @@ export function Awards() {
                   placeholder="Player name"
                   value={form.player_name}
                   onChange={(e) => setForms({ ...forms, [type]: { ...form, player_name: e.target.value } })}
-                  className="w-full bg-dark-700 border border-dark-500 rounded-lg px-3 py-2 text-sm"
+                  className="w-full bg-gridiron-bg border border-gridiron-border rounded-lg px-3 py-2 text-sm text-text-primary"
                   disabled={!!pred?.locked}
                 />
                 <select
                   value={form.team_id}
                   onChange={(e) => setForms({ ...forms, [type]: { ...form, team_id: e.target.value ? Number(e.target.value) : '' } })}
-                  className="w-full bg-dark-700 border border-dark-500 rounded-lg px-3 py-2 text-sm"
+                  className="w-full bg-gridiron-bg border border-gridiron-border rounded-lg px-3 py-2 text-sm text-text-primary"
                   disabled={!!pred?.locked}
                 >
                   <option value="">Select team (optional)</option>
@@ -146,7 +146,7 @@ export function Awards() {
                 <button
                   onClick={() => saveAward(type)}
                   disabled={!!pred?.locked}
-                  className="w-full bg-nfl-blue hover:bg-blue-800 disabled:opacity-50 text-white text-sm py-2 rounded-lg transition-colors"
+                  className="w-full bg-gradient-to-r from-nfl-red to-nfl-blue hover:shadow-glow disabled:opacity-50 text-white text-sm py-2 rounded-lg transition-all"
                 >
                   {isSaved ? 'Update' : 'Save'}
                 </button>

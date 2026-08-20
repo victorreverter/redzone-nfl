@@ -153,12 +153,12 @@ export function Standings() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl md:text-3xl font-bold">Division Predictions</h1>
+        <h1 className="text-3xl md:text-4xl font-serif font-bold gradient-text">Division Predictions</h1>
         <button
           onClick={handleSaveAll}
           disabled={saving}
           className={`text-white px-4 py-2 rounded-lg text-sm transition-all ${
-            saving ? 'bg-gray-600' : 'bg-nfl-blue hover:bg-blue-800'
+            saving ? 'bg-text-muted' : 'bg-gradient-to-r from-nfl-red to-nfl-blue hover:shadow-glow'
           }`}
         >
           {saving ? 'Saving...' : 'Save All'}
@@ -166,13 +166,13 @@ export function Standings() {
       </div>
 
       {teams.length === 0 ? (
-        <div className="bg-dark-800 rounded-xl p-8 border border-dark-600 text-center text-gray-400">
+        <div className="bg-gridiron-surface rounded-xl p-8 border border-gridiron-border text-center text-text-secondary neumorphic">
           Seed teams first in Settings
         </div>
       ) : (
         conferences.map((conf) => (
           <div key={conf}>
-            <h2 className="text-2xl font-bold text-white mb-3 pb-2 border-b-2 border-nfl-blue">{conf}</h2>
+            <h2 className="text-3xl font-serif font-bold text-text-primary mb-4 pb-2 border-b-2 border-nfl-blue">{conf}</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {divisions.map((div) => {
                 const key = `${conf}-${div}`;
@@ -181,13 +181,13 @@ export function Standings() {
                 const isSaved = savedDivisions.has(key);
 
                 return (
-                  <div key={div} className={`bg-dark-800 rounded-xl p-4 border-2 transition-all ${
-                    isSaved ? 'border-green-500' : 'border-dark-600'
+                  <div key={div} className={`bg-gridiron-surface rounded-xl p-4 border-2 transition-all neumorphic ${
+                    isSaved ? 'border-nfl-green shadow-glow-green' : 'border-gridiron-border'
                   }`}>
                     <div className="flex items-center justify-between mb-3">
-                      <h3 className="font-semibold text-sm text-gray-400">{conf} {div}</h3>
+                      <h3 className="font-semibold text-sm text-text-secondary">{conf} {div}</h3>
                       {isSaved && (
-                        <div className="bg-green-500 rounded-full p-1">
+                        <div className="bg-nfl-green rounded-full p-1 animate-check">
                           <Check size={12} className="text-white" />
                         </div>
                       )}
@@ -204,14 +204,14 @@ export function Standings() {
                             onDragEnter={() => handleDragEnter(key, index)}
                             onDragEnd={() => handleDragEnd(key)}
                             onDragOver={(e) => e.preventDefault()}
-                            className="flex items-center gap-2 bg-dark-700 rounded-lg p-2 cursor-grab active:cursor-grabbing hover:bg-dark-600 transition-colors"
+                            className="flex items-center gap-2 bg-gridiron-surface-hover rounded-lg p-2 cursor-grab active:cursor-grabbing hover:bg-gridiron-border transition-all"
                           >
-                            <GripVertical size={16} className="text-gray-500" />
-                            <span className="text-xs text-gray-500 w-4">{index + 1}</span>
+                            <GripVertical size={16} className="text-text-muted" />
+                            <span className="text-xs text-text-muted w-4 font-mono">{index + 1}</span>
                             {team.logo_url && (
                               <img src={team.logo_url} alt={team.abbreviation} className="w-6 h-6 object-contain" />
                             )}
-                            <span className="flex-1 text-sm">{team.city} {team.name}</span>
+                            <span className="flex-1 text-sm text-text-primary">{team.city} {team.name}</span>
                           </div>
                         );
                       })}

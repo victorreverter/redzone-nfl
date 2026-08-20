@@ -139,13 +139,13 @@ export function Schedule() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl md:text-3xl font-bold">Weekly Schedule</h1>
+        <h1 className="text-3xl md:text-4xl font-serif font-bold gradient-text">Weekly Schedule</h1>
         <div className="flex items-center gap-3">
           <button
             onClick={syncResults}
             disabled={syncing}
             className={`flex items-center gap-2 text-white text-sm px-4 py-2 rounded-lg transition-all ${
-              syncing ? 'bg-gray-600' : 'bg-nfl-red hover:bg-red-800'
+              syncing ? 'bg-text-muted' : 'bg-nfl-red hover:bg-red-700 shadow-glow-red'
             }`}
           >
             <RefreshCw size={16} className={syncing ? 'animate-spin' : ''} />
@@ -154,7 +154,7 @@ export function Schedule() {
           <select
             value={selectedWeek}
             onChange={(e) => setSelectedWeek(Number(e.target.value))}
-            className="bg-dark-700 border border-dark-500 rounded-lg px-3 py-2 text-sm"
+            className="bg-gridiron-surface border border-gridiron-border rounded-lg px-3 py-2 text-sm text-text-primary"
           >
             {Array.from({ length: 22 }, (_, i) => i + 1).map((w) => (
               <option key={w} value={w}>Week {w}</option>
@@ -211,46 +211,48 @@ function GameCard({ game, onSave, isSaved }: { game: Game; onSave: (gameId: numb
   }
 
   return (
-    <div className={`relative bg-dark-800 rounded-xl p-4 border-2 transition-all ${
-      isSaved ? 'border-green-500' : 'border-dark-600'
+    <div className={`relative bg-gridiron-surface rounded-xl p-4 border-2 transition-all neumorphic ${
+      isSaved ? 'border-nfl-green shadow-glow-green' : 'border-gridiron-border'
     }`}>
       {isSaved && (
-        <div className="absolute top-2 right-2 bg-green-500 rounded-full p-1">
+        <div className="absolute top-2 right-2 bg-nfl-green rounded-full p-1 animate-check">
           <Check size={14} className="text-white" />
         </div>
       )}
 
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-xs text-gray-500">
+      <div className="flex items-center justify-between mb-4">
+        <span className="text-xs text-text-muted font-mono">
           {game.game_time ? new Date(game.game_time).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : 'TBD'}
         </span>
         {game.points_earned > 0 && (
-          <span className="text-xs bg-green-900 text-green-400 px-2 py-1 rounded-full">
+          <span className="text-xs bg-nfl-green/20 text-nfl-green px-2 py-1 rounded-full font-mono font-bold">
             +{game.points_earned} pts
           </span>
         )}
       </div>
 
-      <div className="grid grid-cols-3 gap-2 items-center">
+      <div className="grid grid-cols-3 gap-3 items-center">
         <button
           onClick={() => setSelected(game.home_team_id)}
-          className={`text-center p-3 rounded-lg transition-all ${
-            selected === game.home_team_id ? 'bg-nfl-blue ring-2 ring-nfl-blue' : 'bg-dark-700 hover:bg-dark-600'
-          } ${isFinal && actualWinner === game.home_team_id ? 'ring-2 ring-green-500' : ''}`}
+          className={`text-center p-4 rounded-lg transition-all ${
+            selected === game.home_team_id 
+              ? 'bg-nfl-blue/20 ring-2 ring-nfl-blue shadow-glow' 
+              : 'bg-gridiron-surface-hover hover:bg-gridiron-border'
+          } ${isFinal && actualWinner === game.home_team_id ? 'ring-2 ring-nfl-green shadow-glow-green' : ''}`}
         >
           {game.home_team_logo && (
-            <img src={game.home_team_logo} alt={game.home_team_abbr} className="w-10 h-10 mx-auto mb-1 object-contain" />
+            <img src={game.home_team_logo} alt={game.home_team_abbr} className="w-12 h-12 mx-auto mb-2 object-contain" />
           )}
-          <span className="text-sm font-bold hidden md:block">{game.home_team_city} {game.home_team_name}</span>
-          <span className="text-sm font-bold md:hidden">{game.home_team_abbr}</span>
+          <span className="text-sm font-bold hidden md:block text-text-primary">{game.home_team_city} {game.home_team_name}</span>
+          <span className="text-sm font-bold md:hidden text-text-primary">{game.home_team_abbr}</span>
         </button>
 
         <div className="text-center">
-          <div className="text-gray-500 text-sm mb-2">@</div>
+          <div className="text-text-muted text-sm mb-2 font-mono">@</div>
           <button
             onClick={() => setSelected(null)}
-            className={`text-xs px-2 py-1 rounded transition-all ${
-              selected === null ? 'bg-gray-600 text-white' : 'bg-dark-700 text-gray-400 hover:bg-dark-600'
+            className={`text-xs px-3 py-1.5 rounded transition-all ${
+              selected === null ? 'bg-text-muted text-text-primary' : 'bg-gridiron-surface-hover text-text-secondary hover:bg-gridiron-border'
             }`}
           >
             Tie
@@ -259,50 +261,52 @@ function GameCard({ game, onSave, isSaved }: { game: Game; onSave: (gameId: numb
 
         <button
           onClick={() => setSelected(game.away_team_id)}
-          className={`text-center p-3 rounded-lg transition-all ${
-            selected === game.away_team_id ? 'bg-nfl-blue ring-2 ring-nfl-blue' : 'bg-dark-700 hover:bg-dark-600'
-          } ${isFinal && actualWinner === game.away_team_id ? 'ring-2 ring-green-500' : ''}`}
+          className={`text-center p-4 rounded-lg transition-all ${
+            selected === game.away_team_id 
+              ? 'bg-nfl-blue/20 ring-2 ring-nfl-blue shadow-glow' 
+              : 'bg-gridiron-surface-hover hover:bg-gridiron-border'
+          } ${isFinal && actualWinner === game.away_team_id ? 'ring-2 ring-nfl-green shadow-glow-green' : ''}`}
         >
           {game.away_team_logo && (
-            <img src={game.away_team_logo} alt={game.away_team_abbr} className="w-10 h-10 mx-auto mb-1 object-contain" />
+            <img src={game.away_team_logo} alt={game.away_team_abbr} className="w-12 h-12 mx-auto mb-2 object-contain" />
           )}
-          <span className="text-sm font-bold hidden md:block">{game.away_team_city} {game.away_team_name}</span>
-          <span className="text-sm font-bold md:hidden">{game.away_team_abbr}</span>
+          <span className="text-sm font-bold hidden md:block text-text-primary">{game.away_team_city} {game.away_team_name}</span>
+          <span className="text-sm font-bold md:hidden text-text-primary">{game.away_team_abbr}</span>
         </button>
       </div>
 
       {/* Prediction inputs with official score */}
-      <div className="mt-3 flex gap-2 items-center flex-wrap">
+      <div className="mt-4 flex gap-3 items-center flex-wrap">
         <div className="flex items-center gap-2">
-          <div className="text-xs text-gray-400">Your prediction:</div>
+          <div className="text-xs text-text-secondary">Your prediction:</div>
           <input
             type="number"
             placeholder="Home"
             value={homeScore}
             onChange={(e) => setHomeScore(e.target.value)}
-            className="w-16 bg-dark-700 border border-dark-500 rounded px-2 py-1 text-sm text-center"
+            className="w-16 bg-gridiron-bg border border-gridiron-border rounded px-2 py-1 text-sm text-center text-text-primary font-mono"
           />
-          <span className="text-gray-500 text-sm">-</span>
+          <span className="text-text-muted text-sm font-mono">-</span>
           <input
             type="number"
             placeholder="Away"
             value={awayScore}
             onChange={(e) => setAwayScore(e.target.value)}
-            className="w-16 bg-dark-700 border border-dark-500 rounded px-2 py-1 text-sm text-center"
+            className="w-16 bg-gridiron-bg border border-gridiron-border rounded px-2 py-1 text-sm text-center text-text-primary font-mono"
           />
         </div>
         
         <div className="flex items-center gap-2">
-          <div className="text-xs text-gray-400">Official:</div>
+          <div className="text-xs text-text-secondary">Official:</div>
           {isFinal && actualHomeScore !== null && actualAwayScore !== null ? (
-            <div className="flex items-center gap-1 bg-dark-900 border-2 border-nfl-blue rounded px-3 py-1">
-              <span className="text-sm font-bold text-white">{actualHomeScore}</span>
-              <span className="text-gray-500">-</span>
-              <span className="text-sm font-bold text-white">{actualAwayScore}</span>
+            <div className="flex items-center gap-1 bg-gridiron-bg border-2 border-nfl-blue rounded px-3 py-1 glow-blue">
+              <span className="text-sm font-bold text-text-primary font-mono">{actualHomeScore}</span>
+              <span className="text-text-muted font-mono">-</span>
+              <span className="text-sm font-bold text-text-primary font-mono">{actualAwayScore}</span>
             </div>
           ) : (
-            <div className="flex items-center gap-1 bg-dark-900 border-2 border-dashed border-gray-600 rounded px-3 py-1">
-              <span className="text-xs text-gray-500 italic">TBD</span>
+            <div className="flex items-center gap-1 bg-gridiron-bg border-2 border-dashed border-gridiron-border rounded px-3 py-1">
+              <span className="text-xs text-text-muted italic">TBD</span>
             </div>
           )}
         </div>
@@ -311,7 +315,7 @@ function GameCard({ game, onSave, isSaved }: { game: Game; onSave: (gameId: numb
           onClick={handleSave}
           disabled={saving}
           className={`ml-auto text-white text-sm px-4 py-1.5 rounded-lg transition-all ${
-            saving ? 'bg-gray-600' : 'bg-nfl-blue hover:bg-blue-800'
+            saving ? 'bg-text-muted' : 'bg-gradient-to-r from-nfl-red to-nfl-blue hover:shadow-glow'
           }`}
         >
           {saving ? 'Saving...' : isSaved ? 'Update' : 'Save'}
@@ -320,17 +324,17 @@ function GameCard({ game, onSave, isSaved }: { game: Game; onSave: (gameId: numb
 
       {/* Result badge */}
       {isFinal && isSaved && (
-        <div className="mt-2 flex justify-end">
+        <div className="mt-3 flex justify-end">
           {exactScore ? (
-            <span className="text-xs bg-green-900 text-green-400 px-2 py-1 rounded-full">
+            <span className="text-xs bg-nfl-green/20 text-nfl-green px-2 py-1 rounded-full font-mono font-bold">
               Exact Score! +5 pts
             </span>
           ) : predictionCorrect ? (
-            <span className="text-xs bg-blue-900 text-blue-400 px-2 py-1 rounded-full">
+            <span className="text-xs bg-nfl-blue/20 text-nfl-blue px-2 py-1 rounded-full font-mono font-bold">
               Correct Winner +1 pt
             </span>
           ) : (
-            <span className="text-xs bg-red-900 text-red-400 px-2 py-1 rounded-full">
+            <span className="text-xs bg-nfl-red/20 text-nfl-red px-2 py-1 rounded-full font-mono font-bold">
               Wrong Prediction
             </span>
           )}
