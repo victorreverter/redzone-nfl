@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api';
-import { Check } from 'lucide-react';
+import { Check, RefreshCw } from 'lucide-react';
 
 interface Game {
   id: number;
@@ -39,6 +39,7 @@ export function Schedule() {
   const [seasonId, setSeasonId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [savedGames, setSavedGames] = useState<Set<number>>(new Set());
+  const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -97,6 +98,36 @@ export function Schedule() {
     setSavedGames(prev => new Set(prev).add(gameId));
   }
 
+  async function syncResults() {
+    if (!seasonId) return;
+    setSyncing(true);
+    try {
+      await api.post(`/espn/sync/${seasonId}`, {});
+      // Reload games to show updated scores
+      const [gamesData, predictionsData] = await Promise.all([
+        api.get<Game[]>(`/games?season_id=${seasonId}&week=${selectedWeek}`),
+        api.get<Prediction[]>(`/predictions/weekly/${seasonId}?week=${selectedWeek}`),
+      ]);
+
+      const mergedGames = gamesData.map(game => {
+        const pred = predictionsData.find(p => p.game_id === game.id);
+        return pred ? {
+          ...game,
+          predicted_winner_team_id: pred.predicted_winner_team_id,
+          predicted_home_score: pred.predicted_home_score,
+          predicted_away_score: pred.predicted_away_score,
+          points_earned: pred.points_earned,
+        } : game;
+      });
+
+      setGames(mergedGames);
+    } catch (error) {
+      console.error('Sync failed:', error);
+    } finally {
+      setSyncing(false);
+    }
+  }
+
   if (loading) {
     return <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-nfl-blue" /></div>;
   }
@@ -109,15 +140,27 @@ export function Schedule() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl md:text-3xl font-bold">Weekly Schedule</h1>
-        <select
-          value={selectedWeek}
-          onChange={(e) => setSelectedWeek(Number(e.target.value))}
-          className="bg-dark-700 border border-dark-500 rounded-lg px-3 py-2 text-sm"
-        >
-          {Array.from({ length: 22 }, (_, i) => i + 1).map((w) => (
-            <option key={w} value={w}>Week {w}</option>
-          ))}
-        </select>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={syncResults}
+            disabled={syncing}
+            className={`flex items-center gap-2 text-white text-sm px-4 py-2 rounded-lg transition-all ${
+              syncing ? 'bg-gray-600' : 'bg-nfl-red hover:bg-red-800'
+            }`}
+          >
+            <RefreshCw size={16} className={syncing ? 'animate-spin' : ''} />
+            {syncing ? 'Syncing...' : 'Sync Results'}
+          </button>
+          <select
+            value={selectedWeek}
+            onChange={(e) => setSelectedWeek(Number(e.target.value))}
+            className="bg-dark-700 border border-dark-500 rounded-lg px-3 py-2 text-sm"
+          >
+            {Array.from({ length: 22 }, (_, i) => i + 1).map((w) => (
+              <option key={w} value={w}>Week {w}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {games.length === 0 ? (
@@ -145,6 +188,21 @@ function GameCard({ game, onSave, isSaved }: { game: Game; onSave: (gameId: numb
   const [awayScore, setAwayScore] = useState(game.predicted_away_score?.toString() ?? '');
   const [selected, setSelected] = useState<number | null>(game.predicted_winner_team_id);
   const [saving, setSaving] = useState(false);
+
+  const isFinal = game.status === 'final';
+  const actualHomeScore = game.home_score;
+  const actualAwayScore = game.away_score;
+  const actualWinner = actualHomeScore !== null && actualAwayScore !== null
+    ? actualHomeScore > actualAwayScore ? game.home_team_id
+    : actualAwayScore > actualHomeScore ? game.away_team_id
+    : null
+    : null;
+
+  // Determine prediction accuracy
+  const predictionCorrect = isFinal && isSaved && selected === actualWinner;
+  const exactScore = isFinal && isSaved && 
+    game.predicted_home_score === actualHomeScore && 
+    game.predicted_away_score === actualAwayScore;
 
   async function handleSave() {
     setSaving(true);
@@ -178,14 +236,18 @@ function GameCard({ game, onSave, isSaved }: { game: Game; onSave: (gameId: numb
           onClick={() => setSelected(game.home_team_id)}
           className={`text-center p-3 rounded-lg transition-all ${
             selected === game.home_team_id ? 'bg-nfl-blue ring-2 ring-nfl-blue' : 'bg-dark-700 hover:bg-dark-600'
-          }`}
+          } ${isFinal && actualWinner === game.home_team_id ? 'ring-2 ring-green-500' : ''}`}
         >
           {game.home_team_logo && (
             <img src={game.home_team_logo} alt={game.home_team_abbr} className="w-10 h-10 mx-auto mb-1 object-contain" />
           )}
           <span className="text-sm font-bold hidden md:block">{game.home_team_city} {game.home_team_name}</span>
           <span className="text-sm font-bold md:hidden">{game.home_team_abbr}</span>
-          {game.home_score !== null && <span className="block text-lg font-bold mt-1">{game.home_score}</span>}
+          {isFinal && actualHomeScore !== null && (
+            <span className={`block text-lg font-bold mt-1 ${exactScore ? 'text-green-400' : ''}`}>
+              {actualHomeScore}
+            </span>
+          )}
         </button>
 
         <div className="text-center">
@@ -198,22 +260,54 @@ function GameCard({ game, onSave, isSaved }: { game: Game; onSave: (gameId: numb
           >
             Tie
           </button>
+          {isFinal && actualHomeScore === actualAwayScore && (
+            <div className="text-xs text-green-400 mt-1">Actual: Tie</div>
+          )}
         </div>
 
         <button
           onClick={() => setSelected(game.away_team_id)}
           className={`text-center p-3 rounded-lg transition-all ${
             selected === game.away_team_id ? 'bg-nfl-blue ring-2 ring-nfl-blue' : 'bg-dark-700 hover:bg-dark-600'
-          }`}
+          } ${isFinal && actualWinner === game.away_team_id ? 'ring-2 ring-green-500' : ''}`}
         >
           {game.away_team_logo && (
             <img src={game.away_team_logo} alt={game.away_team_abbr} className="w-10 h-10 mx-auto mb-1 object-contain" />
           )}
           <span className="text-sm font-bold hidden md:block">{game.away_team_city} {game.away_team_name}</span>
           <span className="text-sm font-bold md:hidden">{game.away_team_abbr}</span>
-          {game.away_score !== null && <span className="block text-lg font-bold mt-1">{game.away_score}</span>}
+          {isFinal && actualAwayScore !== null && (
+            <span className={`block text-lg font-bold mt-1 ${exactScore ? 'text-green-400' : ''}`}>
+              {actualAwayScore}
+            </span>
+          )}
         </button>
       </div>
+
+      {/* Prediction vs Actual comparison */}
+      {isFinal && isSaved && (
+        <div className="mt-3 p-3 bg-dark-700 rounded-lg">
+          <div className="text-xs text-gray-400 mb-2">Your Prediction</div>
+          <div className="flex justify-between items-center">
+            <span className="text-sm">
+              {game.predicted_home_score ?? '?'} - {game.predicted_away_score ?? '?'}
+            </span>
+            {exactScore ? (
+              <span className="text-xs bg-green-900 text-green-400 px-2 py-1 rounded-full">
+                Exact Score! +5 pts
+              </span>
+            ) : predictionCorrect ? (
+              <span className="text-xs bg-blue-900 text-blue-400 px-2 py-1 rounded-full">
+                Correct Winner +1 pt
+              </span>
+            ) : (
+              <span className="text-xs bg-red-900 text-red-400 px-2 py-1 rounded-full">
+                Wrong Prediction
+              </span>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="mt-3 flex gap-2 items-center">
         <input
