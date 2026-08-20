@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { api } from '../lib/api';
-import { shortenCity } from '../lib/utils';
+import { teamDisplayName } from '../lib/utils';
 import { Check, RefreshCw, BarChart3 } from 'lucide-react';
 
 interface Game {
@@ -290,8 +290,8 @@ function GameCard({ game, onSave, isSaved }: { game: Game; onSave: (gameId: numb
           {game.home_team_logo && (
             <img src={game.home_team_logo} alt={game.home_team_abbr} className="w-10 h-10 md:w-16 md:h-16 mx-auto mb-1 md:mb-2 object-contain" />
           )}
-          <span className="text-sm md:text-base font-bold hidden md:block text-text-primary uppercase tracking-wide">{shortenCity(game.home_team_city)} {game.home_team_name}</span>
-          <span className="text-xs md:text-sm font-bold md:hidden text-text-primary uppercase">{game.home_team_abbr}</span>
+          <span className="text-sm md:text-lg font-bold hidden md:block text-text-primary uppercase tracking-wide truncate">{teamDisplayName(game.home_team_city, game.home_team_name)}</span>
+          <span className="text-xs md:text-lg font-bold md:hidden text-text-primary uppercase">{game.home_team_abbr}</span>
         </motion.button>
 
         <div className="text-center">
@@ -321,8 +321,8 @@ function GameCard({ game, onSave, isSaved }: { game: Game; onSave: (gameId: numb
           {game.away_team_logo && (
             <img src={game.away_team_logo} alt={game.away_team_abbr} className="w-10 h-10 md:w-16 md:h-16 mx-auto mb-1 md:mb-2 object-contain" />
           )}
-          <span className="text-sm md:text-base font-bold hidden md:block text-text-primary uppercase tracking-wide">{shortenCity(game.away_team_city)} {game.away_team_name}</span>
-          <span className="text-xs md:text-sm font-bold md:hidden text-text-primary uppercase">{game.away_team_abbr}</span>
+          <span className="text-sm md:text-lg font-bold hidden md:block text-text-primary uppercase tracking-wide truncate">{teamDisplayName(game.away_team_city, game.away_team_name)}</span>
+          <span className="text-xs md:text-lg font-bold md:hidden text-text-primary uppercase">{game.away_team_abbr}</span>
         </motion.button>
       </div>
 

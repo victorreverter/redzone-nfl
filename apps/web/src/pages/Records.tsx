@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { api } from '../lib/api';
-import { shortenCity } from '../lib/utils';
+import { teamDisplayName } from '../lib/utils';
 import { Check } from 'lucide-react';
 
 interface RecordPred {
@@ -236,7 +236,7 @@ export function Records() {
                               {team.logo_url && (
                                 <img src={team.logo_url} alt={team.abbreviation} className="w-8 h-8 object-contain" />
                               )}
-                              <span className="text-base font-bold text-text-primary uppercase tracking-wide">{shortenCity(team.city)} {team.name}</span>
+                              <span className="text-lg md:text-xl font-bold text-text-primary uppercase tracking-wide truncate">{teamDisplayName(team.city, team.name)}</span>
                             </div>
                             <div className="flex gap-3 items-center">
                               <input

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { api } from '../lib/api';
-import { shortenCity } from '../lib/utils';
+import { teamDisplayName } from '../lib/utils';
 import { Check } from 'lucide-react';
 
 interface AwardPred {
@@ -200,7 +200,7 @@ export function Awards() {
                 >
                   <option value="">Select team (optional)</option>
                   {teams.map((t) => (
-                    <option key={t.id} value={t.id}>{shortenCity(t.city)} {t.name}</option>
+                    <option key={t.id} value={t.id}>{teamDisplayName(t.city, t.name)}</option>
                   ))}
                 </select>
                 <motion.button

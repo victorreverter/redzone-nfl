@@ -37,6 +37,9 @@ router.post('/import-schedule/:seasonId', async (c) => {
       teamMap.set(t.name.toLowerCase(), t.id);
       teamMap.set(`${t.city} ${t.name}`.toLowerCase(), t.id);
     }
+    // Alias: schedule uses WSH but DB uses WAS
+    const wasId = teamMap.get('was');
+    if (wasId) teamMap.set('wsh', wasId);
 
     let imported = 0;
 
