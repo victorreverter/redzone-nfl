@@ -1,84 +1,112 @@
 import { useCallback, useEffect, useState } from 'react';
 import useEmblaCarousel from 'embla-carousel-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 const milestones = [
   {
     year: 1920,
     title: 'The Birth of the NFL',
     description: 'The American Professional Football Association is founded in Canton, Ohio. 14 teams begin a legacy that will span over a century.',
-    gradient: 'from-amber-900 via-amber-800 to-stone-900',
+    gradient: 'from-amber-900 via-amber-700 to-stone-900',
+    filter: 'sepia-[0.6] contrast-[1.1] brightness-[0.85]',
+    era: 'vintage',
   },
   {
     year: 1958,
     title: 'The Greatest Game Ever Played',
     description: 'Giants vs Colts. Alan Ameche\'s overtime touchdown. 63M viewers watch on TV — the NFL goes mainstream.',
-    gradient: 'from-blue-900 via-blue-800 to-slate-900',
+    gradient: 'from-blue-900 via-blue-700 to-slate-900',
+    filter: 'sepia-[0.5] contrast-[1.1] brightness-[0.9]',
+    era: 'vintage',
   },
   {
     year: 1967,
     title: 'Super Bowl I',
     description: 'Packers 35, Chiefs 10. Lombardi\'s dynasty completes the job. The championship game that started it all.',
-    gradient: 'from-yellow-900 via-yellow-800 to-green-900',
+    gradient: 'from-yellow-900 via-yellow-700 to-green-900',
+    filter: 'sepia-[0.4] contrast-[1.05] brightness-[0.9]',
+    era: 'vintage',
   },
   {
     year: 1969,
     title: 'Namath\'s Guarantee',
     description: '"I guarantee it." Joe Namath and the Jets shock the Colts in Super Bowl III. The AFL proves it belongs.',
-    gradient: 'from-green-900 via-emerald-800 to-slate-900',
+    gradient: 'from-green-900 via-emerald-700 to-slate-900',
+    filter: 'sepia-[0.35] contrast-[1.05] brightness-[0.9]',
+    era: 'vintage',
   },
   {
     year: 1970,
     title: 'The Merger',
     description: 'AFL and NFL become one league. 26 teams, two conferences. The modern NFL is born.',
-    gradient: 'from-slate-700 via-slate-600 to-blue-900',
+    gradient: 'from-slate-700 via-slate-500 to-blue-900',
+    filter: 'sepia-[0.3] contrast-[1.05] brightness-[0.9]',
+    era: 'vintage',
   },
   {
     year: 1972,
     title: 'The Immaculate Reception',
     description: 'Franco Harris scoops a deflected pass. Steelers dynasty begins. The most debated play in NFL history.',
-    gradient: 'from-zinc-700 via-zinc-600 to-zinc-900',
+    gradient: 'from-zinc-700 via-zinc-500 to-zinc-900',
+    filter: 'sepia-[0.25] contrast-[1.1] brightness-[0.9]',
+    era: 'vintage',
   },
   {
     year: 1985,
     title: 'Bears 46 Defense',
     description: 'Chicago\'s 15-1 season. The 46 defense terrorizes the league. "Super Bowl Shuffle" becomes a cultural icon.',
-    gradient: 'from-orange-800 via-orange-700 to-blue-900',
+    gradient: 'from-orange-800 via-orange-600 to-blue-900',
+    filter: 'sepia-[0.15] contrast-[1.05] brightness-[0.95]',
+    era: 'retro',
   },
   {
     year: 1989,
     title: '49ers Dynasty Peak',
     description: 'Montana to Rice to Clark. San Francisco wins 4 Super Bowls in 9 years. The West Coast Offense redefines football.',
-    gradient: 'from-red-900 via-red-800 to-yellow-900',
+    gradient: 'from-red-900 via-red-700 to-yellow-900',
+    filter: 'sepia-[0.1] contrast-[1.05] brightness-[0.95]',
+    era: 'retro',
   },
   {
     year: 1992,
     title: 'Cowboys Triple Crown',
     description: 'Dallas wins 3 Super Bowls in 4 years (1992, 1993, 1995). Aikman, Smith, Irvin — "The Triplets."',
-    gradient: 'from-blue-900 via-blue-800 to-slate-700',
+    gradient: 'from-blue-900 via-blue-700 to-slate-700',
+    filter: 'contrast-[1.05] brightness-[0.95] saturate-[1.1]',
+    era: 'retro',
   },
   {
     year: 2002,
     title: 'Patriots Dynasty Begins',
     description: 'Brady and Belichick. Three Super Bowls in four years (2001, 2003, 2004). The greatest dynasty of the salary cap era.',
-    gradient: 'from-blue-900 via-indigo-800 to-red-900',
+    gradient: 'from-blue-900 via-indigo-700 to-red-900',
+    filter: 'contrast-[1.05] brightness-[0.95] saturate-[1.1]',
+    era: 'modern',
+  },
+  {
+    year: 2008,
+    title: 'Giants Shock the Patriots',
+    description: 'David Tyree\'s Helmet Catch. New York denies New England\'s perfect 19-0 season. One of the greatest upsets ever.',
+    gradient: 'from-red-800 via-blue-800 to-blue-950',
+    filter: 'contrast-[1.05] brightness-[0.95] saturate-[1.1]',
+    era: 'modern',
   },
   {
     year: 2017,
     title: '28-3 Greatest Comeback',
     description: 'Down 25 points in Super Bowl LI. Patriots score 31 unanswered. The largest comeback in Super Bowl history.',
-    gradient: 'from-red-900 via-red-800 to-yellow-900',
-  },
-  {
-    year: 2024,
-    title: 'Chiefs Three-Peat',
-    description: 'Mahomes leads Kansas City to three consecutive Super Bowl wins. A new dynasty is born in the 2020s.',
-    gradient: 'from-red-800 via-red-700 to-yellow-800',
+    gradient: 'from-red-900 via-red-700 to-yellow-900',
+    filter: 'contrast-[1.08] brightness-[1] saturate-[1.15]',
+    era: 'modern',
   },
 ];
 
 export function MilestoneSlider() {
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true });
   const [selectedIndex, setSelectedIndex] = useState(0);
+
+  const scrollPrev = useCallback(() => emblaApi?.scrollPrev(), [emblaApi]);
+  const scrollNext = useCallback(() => emblaApi?.scrollNext(), [emblaApi]);
 
   const onSelect = useCallback(() => {
     if (!emblaApi) return;
@@ -92,48 +120,72 @@ export function MilestoneSlider() {
     return () => { emblaApi.off('select', onSelect); };
   }, [emblaApi, onSelect]);
 
-  // Auto-play
+  // Auto-play (slower: 7 seconds)
   useEffect(() => {
     if (!emblaApi) return;
     const interval = setInterval(() => {
       emblaApi.scrollNext();
-    }, 5000);
+    }, 7000);
     return () => clearInterval(interval);
   }, [emblaApi]);
 
   return (
-    <div className="overflow-hidden">
-      <div className="embla" ref={emblaRef}>
-        <div className="embla__container flex">
-          {milestones.map((m) => (
-            <div key={m.year} className="embla__slide flex-[0_0_100%] min-w-0">
-              <div className={`relative bg-gradient-to-br ${m.gradient} border-2 border-gridiron-border overflow-hidden`}>
-                {/* Decorative year */}
-                <div className="absolute -top-4 -right-4 text-[8rem] md:text-[12rem] font-oswald font-bold text-white/[0.05] leading-none select-none pointer-events-none">
-                  {m.year}
-                </div>
+    <div className="mb-6 md:mb-8">
+      <div className="overflow-hidden relative">
+        <div className="embla" ref={emblaRef}>
+          <div className="embla__container flex">
+            {milestones.map((m) => (
+              <div key={m.year} className="embla__slide flex-[0_0_100%] min-w-0">
+                <div className={`relative bg-gradient-to-br ${m.gradient} border-2 border-gridiron-border overflow-hidden filter ${m.filter}`}>
+                  {/* Noise texture overlay for vintage feel */}
+                  <div className="absolute inset-0 opacity-[0.08] mix-blend-overlay pointer-events-none"
+                    style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 256 256\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'n\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.85\' numOctaves=\'4\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23n)\'/%3E%3C/svg%3E")' }}
+                  />
 
-                {/* Content */}
-                <div className="relative z-10 p-6 md:p-8 lg:p-10 min-h-[200px] md:min-h-[280px] flex flex-col justify-end">
-                  <div className="mb-2 md:mb-3">
-                    <span className="text-xs md:text-sm font-mono font-bold text-white/60 uppercase tracking-widest">
-                      {m.year}
-                    </span>
+                  {/* Decorative year */}
+                  <div className="absolute -top-6 -right-6 text-[10rem] md:text-[16rem] font-oswald font-bold text-white/[0.06] leading-none select-none pointer-events-none">
+                    {m.year}
                   </div>
-                  <h3 className="text-xl md:text-3xl lg:text-4xl font-oswald font-bold text-white uppercase tracking-tight leading-tight mb-2 md:mb-3">
-                    {m.title}
-                  </h3>
-                  <p className="text-sm md:text-base lg:text-lg text-white/80 font-sans leading-relaxed max-w-2xl">
-                    {m.description}
-                  </p>
-                </div>
 
-                {/* Bottom gradient fade */}
-                <div className="absolute bottom-0 left-0 right-0 h-1/3 bg-gradient-to-t from-black/30 to-transparent pointer-events-none" />
+                  {/* Side accent bar */}
+                  <div className="absolute left-0 top-0 bottom-0 w-1 md:w-1.5 bg-white/20" />
+
+                  {/* Content */}
+                  <div className="relative z-10 p-6 md:p-10 lg:p-12 min-h-[260px] md:min-h-[340px] flex flex-col justify-end">
+                    <div className="mb-3 md:mb-4">
+                      <span className="text-xs md:text-sm font-mono font-bold text-white/50 uppercase tracking-[0.2em]">
+                        {m.year}
+                      </span>
+                    </div>
+                    <h3 className="text-2xl md:text-4xl lg:text-5xl font-oswald font-bold text-white uppercase tracking-tight leading-[1.1] mb-3 md:mb-4">
+                      {m.title}
+                    </h3>
+                    <p className="text-sm md:text-base lg:text-lg text-white/75 font-sans leading-relaxed max-w-2xl">
+                      {m.description}
+                    </p>
+                  </div>
+
+                  {/* Bottom gradient fade */}
+                  <div className="absolute bottom-0 left-0 right-0 h-1/4 bg-gradient-to-t from-black/40 to-transparent pointer-events-none" />
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
+
+        {/* Navigation arrows */}
+        <button
+          onClick={scrollPrev}
+          className="absolute left-2 md:left-4 top-1/2 -translate-y-1/2 z-10 bg-black/40 hover:bg-black/60 backdrop-blur-sm p-2 md:p-3 transition-all border border-white/20"
+        >
+          <ChevronLeft size={20} className="text-white" />
+        </button>
+        <button
+          onClick={scrollNext}
+          className="absolute right-2 md:right-4 top-1/2 -translate-y-1/2 z-10 bg-black/40 hover:bg-black/60 backdrop-blur-sm p-2 md:p-3 transition-all border border-white/20"
+        >
+          <ChevronRight size={20} className="text-white" />
+        </button>
       </div>
 
       {/* Navigation dots */}
