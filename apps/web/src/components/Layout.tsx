@@ -20,7 +20,7 @@ export function Layout({ children }: { children: ReactNode }) {
       <header className="bg-gridiron-surface border-b-2 border-gridiron-border sticky top-0 z-50 neumorphic">
         <div className="flex items-center justify-between px-4 h-16">
           <NavLink to="/" className="flex items-center gap-3">
-            <span className="text-4xl">🏈</span>
+            <img src="/nfl-shield.svg" alt="NFL" className="w-12 h-12" />
             <span className="font-serif font-bold text-2xl text-text-primary uppercase tracking-wider">Redzone NFL</span>
           </NavLink>
           <button

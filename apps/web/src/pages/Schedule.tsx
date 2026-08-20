@@ -177,7 +177,7 @@ export function Schedule() {
           No games for this week yet. Import schedule from Settings.
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {games.map((game) => (
             <GameCard
               key={game.id}
