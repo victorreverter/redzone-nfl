@@ -33,6 +33,8 @@ export default {
       },
       fontFamily: {
         serif: ['Georgia', 'serif'],
+        sans: ['system-ui', '-apple-system', 'sans-serif'],
+        oswald: ['Oswald', 'sans-serif'],
         mono: ['Courier New', 'monospace'],
       },
       fontSize: {

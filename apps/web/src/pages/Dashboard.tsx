@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { api } from '../lib/api';
-import { Trophy, TrendingUp, Target, Award, CalendarDays } from 'lucide-react';
+import { Trophy, TrendingUp, Target, CalendarDays, BarChart3 } from 'lucide-react';
 
 interface Season {
   id: number;
@@ -16,9 +16,16 @@ interface Score {
   total: number;
 }
 
+interface Accuracy {
+  overall: { correct: number; total: number; percentage: number; points: number };
+  regular: { correct: number; total: number; percentage: number };
+  postseason: { correct: number; total: number; percentage: number };
+}
+
 export function Dashboard() {
   const [seasons, setSeasons] = useState<Season[]>([]);
   const [score, setScore] = useState<Score>({ weekly: 0, playoff: 0, total: 0 });
+  const [accuracy, setAccuracy] = useState<Accuracy | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -27,8 +34,12 @@ export function Dashboard() {
         const data = await api.get<Season[]>('/seasons');
         setSeasons(data);
         if (data.length > 0) {
-          const s = await api.get<Score>(`/predictions/score/${data[0].id}`);
+          const [s, a] = await Promise.all([
+            api.get<Score>(`/predictions/score/${data[0].id}`),
+            api.get<Accuracy>(`/predictions/accuracy/${data[0].id}`),
+          ]);
           setScore(s);
+          setAccuracy(a);
         }
       } catch {
         // API not ready yet
@@ -98,9 +109,10 @@ export function Dashboard() {
           transition={{ delay: 0.2 }}
         >
           <StatCard
-            icon={<Target className="text-nfl-green" size={32} />}
-            label="Weekly Points"
-            value={score.weekly}
+            icon={<BarChart3 className="text-nfl-green" size={32} />}
+            label="Accuracy"
+            value={accuracy ? `${accuracy.overall.percentage}%` : '0%'}
+            subtitle={accuracy ? `${accuracy.overall.correct}/${accuracy.overall.total}` : '0/0'}
           />
         </motion.div>
         <motion.div
@@ -109,9 +121,10 @@ export function Dashboard() {
           transition={{ delay: 0.3 }}
         >
           <StatCard
-            icon={<TrendingUp className="text-nfl-blue" size={32} />}
-            label="Playoff Points"
-            value={score.playoff}
+            icon={<Target className="text-nfl-blue" size={32} />}
+            label="Regular Season"
+            value={accuracy ? `${accuracy.regular.percentage}%` : '0%'}
+            subtitle={accuracy ? `${accuracy.regular.correct}/${accuracy.regular.total}` : '0/0'}
           />
         </motion.div>
         <motion.div
@@ -120,9 +133,10 @@ export function Dashboard() {
           transition={{ delay: 0.4 }}
         >
           <StatCard
-            icon={<Award className="text-nfl-red" size={32} />}
-            label="Season Status"
-            value={currentSeason.status}
+            icon={<TrendingUp className="text-nfl-red" size={32} />}
+            label="Postseason"
+            value={accuracy ? `${accuracy.postseason.percentage}%` : '0%'}
+            subtitle={accuracy ? `${accuracy.postseason.correct}/${accuracy.postseason.total}` : '0/0'}
           />
         </motion.div>
       </div>
@@ -145,14 +159,17 @@ export function Dashboard() {
   );
 }
 
-function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: string | number }) {
+function StatCard({ icon, label, value, subtitle }: { icon: React.ReactNode; label: string; value: string | number; subtitle?: string }) {
   return (
-    <div className="bg-gridiron-surface p-5 border-2 border-gridiron-border neumorphic">
-      <div className="flex items-center gap-4">
+    <div className="bg-gridiron-surface p-4 md:p-5 border-2 border-gridiron-border neumorphic">
+      <div className="flex items-center gap-3 md:gap-4">
         {icon}
         <div>
-          <p className="text-base text-text-secondary uppercase tracking-wide font-bold">{label}</p>
-          <p className="text-4xl font-bold font-mono text-text-primary">{value}</p>
+          <p className="text-xs md:text-base text-text-secondary uppercase tracking-wide font-bold">{label}</p>
+          <p className="text-2xl md:text-4xl font-bold font-mono text-text-primary">{value}</p>
+          {subtitle && (
+            <p className="text-xs md:text-sm text-text-muted font-mono">{subtitle}</p>
+          )}
         </div>
       </div>
     </div>

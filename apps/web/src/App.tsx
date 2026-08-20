@@ -7,6 +7,7 @@ import { Playoffs } from './pages/Playoffs';
 import { Awards } from './pages/Awards';
 import { Records } from './pages/Records';
 import { Settings } from './pages/Settings';
+import { Admin } from './pages/Admin';
 
 export default function App() {
   return (
@@ -19,6 +20,7 @@ export default function App() {
         <Route path="/awards" element={<Awards />} />
         <Route path="/records" element={<Records />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/admin" element={<Admin />} />
       </Routes>
     </Layout>
   );

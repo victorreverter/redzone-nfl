@@ -136,4 +136,92 @@ router.get('/score/:seasonId', async (c) => {
   });
 });
 
+router.get('/accuracy/:seasonId', async (c) => {
+  const { DB } = c.env;
+  const seasonId = c.req.param('seasonId');
+
+  // Overall accuracy (all weeks)
+  const overall = await DB.prepare(`
+    SELECT 
+      COUNT(*) as total,
+      SUM(CASE WHEN points_earned > 0 THEN 1 ELSE 0 END) as correct,
+      SUM(COALESCE(points_earned, 0)) as points
+    FROM predictions_weekly 
+    WHERE season_id = ?
+  `).bind(seasonId).first() as any;
+
+  // Regular season (weeks 1-18)
+  const regular = await DB.prepare(`
+    SELECT 
+      COUNT(*) as total,
+      SUM(CASE WHEN pw.points_earned > 0 THEN 1 ELSE 0 END) as correct
+    FROM predictions_weekly pw
+    JOIN games g ON pw.game_id = g.id
+    WHERE pw.season_id = ? AND g.week <= 18
+  `).bind(seasonId).first() as any;
+
+  // Postseason (weeks 19+)
+  const postseason = await DB.prepare(`
+    SELECT 
+      COUNT(*) as total,
+      SUM(CASE WHEN pw.points_earned > 0 THEN 1 ELSE 0 END) as correct
+    FROM predictions_weekly pw
+    JOIN games g ON pw.game_id = g.id
+    WHERE pw.season_id = ? AND g.week > 18
+  `).bind(seasonId).first() as any;
+
+  const oTotal = overall?.total ?? 0;
+  const oCorrect = overall?.correct ?? 0;
+  const rTotal = regular?.total ?? 0;
+  const rCorrect = regular?.correct ?? 0;
+  const pTotal = postseason?.total ?? 0;
+  const pCorrect = postseason?.correct ?? 0;
+
+  return c.json({
+    overall: {
+      correct: oCorrect,
+      total: oTotal,
+      percentage: oTotal > 0 ? Math.round((oCorrect / oTotal) * 1000) / 10 : 0,
+      points: overall?.points ?? 0,
+    },
+    regular: {
+      correct: rCorrect,
+      total: rTotal,
+      percentage: rTotal > 0 ? Math.round((rCorrect / rTotal) * 1000) / 10 : 0,
+    },
+    postseason: {
+      correct: pCorrect,
+      total: pTotal,
+      percentage: pTotal > 0 ? Math.round((pCorrect / pTotal) * 1000) / 10 : 0,
+    },
+  });
+});
+
+router.get('/accuracy/:seasonId/week/:week', async (c) => {
+  const { DB } = c.env;
+  const seasonId = c.req.param('seasonId');
+  const week = parseInt(c.req.param('week'));
+
+  const result = await DB.prepare(`
+    SELECT 
+      COUNT(*) as total,
+      SUM(CASE WHEN points_earned > 0 THEN 1 ELSE 0 END) as correct,
+      SUM(COALESCE(points_earned, 0)) as points
+    FROM predictions_weekly pw
+    JOIN games g ON pw.game_id = g.id
+    WHERE pw.season_id = ? AND g.week = ?
+  `).bind(seasonId, week).first() as any;
+
+  const total = result?.total ?? 0;
+  const correct = result?.correct ?? 0;
+
+  return c.json({
+    week,
+    correct,
+    total,
+    percentage: total > 0 ? Math.round((correct / total) * 1000) / 10 : 0,
+    points: result?.points ?? 0,
+  });
+});
+
 export { router as predictionsRouter };

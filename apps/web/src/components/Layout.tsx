@@ -1,6 +1,6 @@
 import { ReactNode, useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { Menu, X, Trophy, Calendar, BarChart3, Grid3X3, Award, Target, Settings } from 'lucide-react';
+import { Menu, X, Trophy, Calendar, BarChart3, Grid3X3, Award, Target, Settings, Shield } from 'lucide-react';
 
 const navItems = [
   { to: '/', label: 'Dashboard', icon: Trophy },
@@ -10,6 +10,7 @@ const navItems = [
   { to: '/awards', label: 'Awards', icon: Award },
   { to: '/records', label: 'Records', icon: Target },
   { to: '/settings', label: 'Settings', icon: Settings },
+  { to: '/admin', label: 'Admin', icon: Shield },
 ];
 
 export function Layout({ children }: { children: ReactNode }) {
@@ -21,8 +22,11 @@ export function Layout({ children }: { children: ReactNode }) {
       <header className="bg-gridiron-surface/90 backdrop-blur-xl border-b-2 border-gridiron-border sticky top-0 z-50 neumorphic">
         <div className="flex items-center justify-between px-4 h-16">
           <NavLink to="/" className="flex items-center gap-3">
-            <img src="/nfl-logo-official.png" alt="NFL" className="w-12 h-12" />
-            <span className="font-serif font-bold text-2xl text-text-primary uppercase tracking-wider leading-none">Redzone NFL</span>
+            <img src="/nfl-logo-official.png" alt="NFL" className="w-10 h-10 md:w-12 md:h-12" />
+            <span className="leading-none">
+              <span className="font-oswald text-xl md:text-2xl text-nfl-red uppercase tracking-wider">Redzone</span>
+              <span className="font-sans text-xl md:text-2xl text-text-primary uppercase tracking-wider ml-1">NFL</span>
+            </span>
           </NavLink>
           <button
             onClick={() => setOpen(!open)}
