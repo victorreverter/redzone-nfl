@@ -284,47 +284,38 @@ function GameCard({ game, onSave, isSaved }: { game: Game; onSave: (gameId: numb
         </button>
       </div>
 
-      {/* Prediction vs Actual comparison */}
-      {isFinal && isSaved && (
-        <div className="mt-3 p-3 bg-dark-700 rounded-lg">
-          <div className="text-xs text-gray-400 mb-2">Your Prediction</div>
-          <div className="flex justify-between items-center">
-            <span className="text-sm">
-              {game.predicted_home_score ?? '?'} - {game.predicted_away_score ?? '?'}
-            </span>
-            {exactScore ? (
-              <span className="text-xs bg-green-900 text-green-400 px-2 py-1 rounded-full">
-                Exact Score! +5 pts
-              </span>
-            ) : predictionCorrect ? (
-              <span className="text-xs bg-blue-900 text-blue-400 px-2 py-1 rounded-full">
-                Correct Winner +1 pt
-              </span>
-            ) : (
-              <span className="text-xs bg-red-900 text-red-400 px-2 py-1 rounded-full">
-                Wrong Prediction
-              </span>
-            )}
-          </div>
+      {/* Prediction inputs with official score */}
+      <div className="mt-3 flex gap-2 items-center flex-wrap">
+        <div className="flex items-center gap-2">
+          <div className="text-xs text-gray-400">Your prediction:</div>
+          <input
+            type="number"
+            placeholder="Home"
+            value={homeScore}
+            onChange={(e) => setHomeScore(e.target.value)}
+            className="w-16 bg-dark-700 border border-dark-500 rounded px-2 py-1 text-sm text-center"
+          />
+          <span className="text-gray-500 text-sm">-</span>
+          <input
+            type="number"
+            placeholder="Away"
+            value={awayScore}
+            onChange={(e) => setAwayScore(e.target.value)}
+            className="w-16 bg-dark-700 border border-dark-500 rounded px-2 py-1 text-sm text-center"
+          />
         </div>
-      )}
-
-      <div className="mt-3 flex gap-2 items-center">
-        <input
-          type="number"
-          placeholder="Home"
-          value={homeScore}
-          onChange={(e) => setHomeScore(e.target.value)}
-          className="w-20 bg-dark-700 border border-dark-500 rounded px-2 py-1 text-sm text-center"
-        />
-        <span className="text-gray-500 text-sm">-</span>
-        <input
-          type="number"
-          placeholder="Away"
-          value={awayScore}
-          onChange={(e) => setAwayScore(e.target.value)}
-          className="w-20 bg-dark-700 border border-dark-500 rounded px-2 py-1 text-sm text-center"
-        />
+        
+        {isFinal && actualHomeScore !== null && actualAwayScore !== null && (
+          <div className="flex items-center gap-2">
+            <div className="text-xs text-gray-400">Official:</div>
+            <div className="flex items-center gap-1 bg-dark-900 border border-dark-500 rounded px-3 py-1">
+              <span className="text-sm font-bold text-white">{actualHomeScore}</span>
+              <span className="text-gray-500">-</span>
+              <span className="text-sm font-bold text-white">{actualAwayScore}</span>
+            </div>
+          </div>
+        )}
+        
         <button
           onClick={handleSave}
           disabled={saving}
@@ -335,6 +326,25 @@ function GameCard({ game, onSave, isSaved }: { game: Game; onSave: (gameId: numb
           {saving ? 'Saving...' : isSaved ? 'Update' : 'Save'}
         </button>
       </div>
+
+      {/* Result badge */}
+      {isFinal && isSaved && (
+        <div className="mt-2 flex justify-end">
+          {exactScore ? (
+            <span className="text-xs bg-green-900 text-green-400 px-2 py-1 rounded-full">
+              Exact Score! +5 pts
+            </span>
+          ) : predictionCorrect ? (
+            <span className="text-xs bg-blue-900 text-blue-400 px-2 py-1 rounded-full">
+              Correct Winner +1 pt
+            </span>
+          ) : (
+            <span className="text-xs bg-red-900 text-red-400 px-2 py-1 rounded-full">
+              Wrong Prediction
+            </span>
+          )}
+        </div>
+      )}
     </div>
   );
 }
