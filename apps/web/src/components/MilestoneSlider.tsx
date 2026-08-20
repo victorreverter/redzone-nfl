@@ -200,16 +200,16 @@ export function MilestoneSlider() {
           </div>
         </div>
 
-        {/* Navigation arrows */}
+        {/* Navigation arrows - desktop only */}
         <button
           onClick={scrollPrev}
-          className="absolute left-2 md:left-4 top-1/2 -translate-y-1/2 z-10 bg-black/40 hover:bg-black/60 backdrop-blur-sm p-2 md:p-3 transition-all border border-white/20"
+          className="hidden md:flex absolute left-4 top-1/2 -translate-y-1/2 z-10 bg-black/40 hover:bg-black/60 backdrop-blur-sm p-3 transition-all border border-white/20 items-center justify-center"
         >
           <ChevronLeft size={20} className="text-white" />
         </button>
         <button
           onClick={scrollNext}
-          className="absolute right-2 md:right-4 top-1/2 -translate-y-1/2 z-10 bg-black/40 hover:bg-black/60 backdrop-blur-sm p-2 md:p-3 transition-all border border-white/20"
+          className="hidden md:flex absolute right-4 top-1/2 -translate-y-1/2 z-10 bg-black/40 hover:bg-black/60 backdrop-blur-sm p-3 transition-all border border-white/20 items-center justify-center"
         >
           <ChevronRight size={20} className="text-white" />
         </button>

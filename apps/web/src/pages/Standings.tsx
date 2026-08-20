@@ -118,6 +118,37 @@ export function Standings() {
     dragOverItem.current = null;
   }
 
+  // Touch drag support for mobile
+  const touchStartY = useRef<number>(0);
+  const touchCurrentItem = useRef<{ divKey: string; index: number } | null>(null);
+
+  function handleTouchStart(divKey: string, index: number, e: React.TouchEvent) {
+    touchStartY.current = e.touches[0].clientY;
+    touchCurrentItem.current = { divKey, index };
+  }
+
+  function handleTouchMove(divKey: string, index: number, e: React.TouchEvent) {
+    if (!touchCurrentItem.current || touchCurrentItem.current.divKey !== divKey) return;
+    const deltaY = Math.abs(e.touches[0].clientY - touchStartY.current);
+    if (deltaY > 30) {
+      // User has dragged enough to trigger a reorder
+      const fromIndex = touchCurrentItem.current.index;
+      const toIndex = index;
+      if (fromIndex !== toIndex) {
+        const list = [...(divisionOrders[divKey] || [])];
+        const [removed] = list.splice(fromIndex, 1);
+        list.splice(toIndex, 0, removed);
+        setDivisionOrders({ ...divisionOrders, [divKey]: list });
+        touchCurrentItem.current = { divKey, index: toIndex };
+        touchStartY.current = e.touches[0].clientY;
+      }
+    }
+  }
+
+  function handleTouchEnd() {
+    touchCurrentItem.current = null;
+  }
+
   async function handleSaveAll() {
     if (!seasonId) return;
     setSaving(true);
@@ -223,8 +254,11 @@ export function Standings() {
                             onDragEnter={() => handleDragEnter(key, index)}
                             onDragEnd={() => handleDragEnd(key)}
                             onDragOver={(e) => e.preventDefault()}
+                            onTouchStart={(e) => handleTouchStart(key, index, e)}
+                            onTouchMove={(e) => handleTouchMove(key, index, e)}
+                            onTouchEnd={handleTouchEnd}
                             whileHover={{ scale: 1.02, x: 5 }}
-                            className="flex items-center gap-3 bg-gridiron-surface-hover p-3 cursor-grab active:cursor-grabbing hover:bg-gridiron-border transition-all border-l-4 border-transparent hover:border-nfl-blue"
+                            className="flex items-center gap-3 bg-gridiron-surface-hover p-3 cursor-grab active:cursor-grabbing hover:bg-gridiron-border transition-all border-l-4 border-transparent hover:border-nfl-blue touch-none"
                           >
                             <GripVertical size={18} className="text-text-muted" />
                             <span className="text-base text-text-muted w-6 font-mono font-bold">{index + 1}</span>
