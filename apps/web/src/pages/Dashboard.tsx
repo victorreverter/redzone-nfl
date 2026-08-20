@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { api } from '../lib/api';
 import { Trophy, TrendingUp, Target, CalendarDays, BarChart3 } from 'lucide-react';
+import { MilestoneSlider } from '../components/MilestoneSlider';
 
 interface Season {
   id: number;
@@ -148,7 +149,7 @@ export function Dashboard() {
         transition={{ delay: 0.5 }}
         className="bg-gridiron-surface p-6 border-2 border-gridiron-border neumorphic"
       >
-        <h2 className="text-2xl font-serif font-bold mb-5 text-text-primary uppercase tracking-wide">Quick Actions</h2>
+        <h2 className="text-2xl font-oswald font-bold mb-5 text-text-primary uppercase tracking-wide">Quick Actions</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <QuickLink to="/schedule" label="Make Predictions" />
           <QuickLink to="/standings" label="View Standings" />
@@ -156,6 +157,19 @@ export function Dashboard() {
           <QuickLink to="/records" label="Team Records" />
         </div>
       </motion.div>
+
+      <motion.section
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.6 }}
+        className="bg-gridiron-surface border-2 border-gridiron-border neumorphic"
+      >
+        <div className="p-4 md:p-6 border-b-2 border-gridiron-border">
+          <h2 className="text-2xl font-oswald font-bold text-text-primary uppercase tracking-wide">NFL History</h2>
+          <p className="text-sm text-text-secondary font-bold uppercase tracking-wide mt-1">Moments that defined the game</p>
+        </div>
+        <MilestoneSlider />
+      </motion.section>
     </div>
   );
 }
