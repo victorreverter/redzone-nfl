@@ -101,6 +101,7 @@ export function Dashboard() {
             icon={<Trophy className="text-nfl-yellow" size={32} />}
             label="Total Points"
             value={score.total}
+            subtitle={`${score.weekly} weekly / ${score.playoff} playoff`}
           />
         </motion.div>
         <motion.div
@@ -161,17 +162,17 @@ export function Dashboard() {
 
 function StatCard({ icon, label, value, subtitle }: { icon: React.ReactNode; label: string; value: string | number; subtitle?: string }) {
   return (
-    <div className="bg-gridiron-surface p-4 md:p-5 border-2 border-gridiron-border neumorphic">
+    <div className="bg-gridiron-surface p-4 md:p-5 border-2 border-gridiron-border neumorphic flex flex-col justify-between min-h-[100px]">
       <div className="flex items-center gap-3 md:gap-4">
         {icon}
         <div>
           <p className="text-xs md:text-base text-text-secondary uppercase tracking-wide font-bold">{label}</p>
           <p className="text-2xl md:text-4xl font-bold font-mono text-text-primary">{value}</p>
-          {subtitle && (
-            <p className="text-xs md:text-sm text-text-muted font-mono">{subtitle}</p>
-          )}
         </div>
       </div>
+      {subtitle && (
+        <p className="text-xs md:text-sm text-text-muted font-mono mt-1">{subtitle}</p>
+      )}
     </div>
   );
 }

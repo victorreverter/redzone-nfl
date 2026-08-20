@@ -187,7 +187,7 @@ function BracketRoundSection({
         <p className="text-sm text-text-muted font-bold uppercase tracking-wide">{round.hint}</p>
       </div>
 
-      <div className={`grid gap-4 ${desktop && round.key === 'champion' ? 'pt-44' : ''}`}>
+      <div className={`grid gap-4 ${desktop && round.key === 'champion' ? 'pt-12' : ''}`}>
         {round.key === 'champion' ? (
           <BracketSlot
             roundKey={round.key}
