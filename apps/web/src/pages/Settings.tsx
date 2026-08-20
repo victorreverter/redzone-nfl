@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
 import { api } from '../lib/api';
 
 interface Season {
@@ -86,48 +87,65 @@ export function Settings() {
   }
 
   return (
-    <div className="space-y-6 max-w-2xl">
-      <h1 className="text-3xl md:text-4xl font-serif font-bold gradient-text">Settings</h1>
+    <div className="space-y-6 max-w-3xl">
+      <motion.h1 
+        initial={{ opacity: 0, x: -20 }}
+        animate={{ opacity: 1, x: 0 }}
+        className="text-4xl md:text-5xl lg:text-6xl font-serif font-bold gradient-text uppercase tracking-tight"
+      >
+        Settings
+      </motion.h1>
 
       {message && (
-        <div className="bg-gridiron-surface border border-nfl-blue rounded-lg p-3 text-sm text-text-primary neumorphic">
+        <motion.div 
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-gridiron-surface border-2 border-nfl-blue p-4 text-base text-text-primary neumorphic uppercase tracking-wide font-bold"
+        >
           {message}
-        </div>
+        </motion.div>
       )}
 
-      <div className="bg-gridiron-surface rounded-xl p-6 border border-gridiron-border neumorphic space-y-4">
-        <h2 className="text-lg font-serif font-semibold text-text-primary">Season Setup</h2>
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        className="bg-gridiron-surface p-6 border-2 border-gridiron-border neumorphic space-y-5"
+      >
+        <h2 className="text-2xl font-serif font-bold text-text-primary uppercase tracking-wide">Season Setup</h2>
 
-        <div className="flex gap-3 items-end">
+        <div className="flex gap-4 items-end">
           <div>
-            <label className="block text-sm text-text-secondary mb-1">Season Year</label>
+            <label className="block text-base text-text-secondary mb-2 font-bold uppercase tracking-wide">Season Year</label>
             <input
               type="number"
               value={year}
               onChange={(e) => setYear(Number(e.target.value))}
-              className="bg-gridiron-bg border border-gridiron-border rounded-lg px-3 py-2 w-32 text-text-primary"
+              className="bg-gridiron-bg border-2 border-gridiron-border px-4 py-3 w-40 text-xl text-text-primary font-mono font-bold"
             />
           </div>
-          <button
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
             onClick={createSeason}
-            className="bg-gradient-to-r from-nfl-red to-nfl-blue hover:shadow-glow text-white px-4 py-2 rounded-lg text-sm transition-all"
+            className="bg-gradient-to-r from-nfl-red to-nfl-blue hover:shadow-glow text-white px-6 py-3 text-base font-bold uppercase tracking-wide transition-all"
           >
             Create Season
-          </button>
+          </motion.button>
         </div>
 
         {seasons.length > 0 && (
-          <div className="space-y-2">
-            <h3 className="text-sm font-medium text-text-secondary">Existing Seasons</h3>
+          <div className="space-y-3">
+            <h3 className="text-base font-bold text-text-secondary uppercase tracking-wide">Existing Seasons</h3>
             {seasons.map((s) => (
-              <div key={s.id} className="flex items-center justify-between bg-gridiron-surface-hover rounded-lg p-3">
-                <span className="text-text-primary">{s.year} Season</span>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs bg-gridiron-border px-2 py-1 rounded text-text-primary">{s.status}</span>
+              <div key={s.id} className="flex items-center justify-between bg-gridiron-surface-hover p-4 border-l-4 border-nfl-blue">
+                <span className="text-lg text-text-primary font-bold uppercase tracking-wide">{s.year} Season</span>
+                <div className="flex items-center gap-3">
+                  <span className="text-base bg-gridiron-border px-3 py-1.5 text-text-primary font-bold uppercase">{s.status}</span>
                   <select
                     value={s.status}
                     onChange={(e) => updateStatus(s.id, e.target.value)}
-                    className="bg-gridiron-bg border border-gridiron-border rounded px-2 py-1 text-xs text-text-primary"
+                    className="bg-gridiron-bg border-2 border-gridiron-border px-3 py-1.5 text-base text-text-primary font-bold uppercase"
                   >
                     <option value="preparing">Preparing</option>
                     <option value="active">Active</option>
@@ -139,52 +157,66 @@ export function Settings() {
             ))}
           </div>
         )}
-      </div>
+      </motion.div>
 
-      <div className="bg-gridiron-surface rounded-xl p-6 border border-gridiron-border neumorphic space-y-4">
-        <h2 className="text-lg font-serif font-semibold text-text-primary">Data Management</h2>
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+        className="bg-gridiron-surface p-6 border-2 border-gridiron-border neumorphic space-y-5"
+      >
+        <h2 className="text-2xl font-serif font-bold text-text-primary uppercase tracking-wide">Data Management</h2>
 
-        <div className="space-y-3">
+        <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="font-medium text-text-primary">Seed NFL Teams</p>
-              <p className="text-sm text-text-secondary">Add all 32 NFL teams to the database</p>
+              <p className="text-lg font-bold text-text-primary uppercase tracking-wide">Seed NFL Teams</p>
+              <p className="text-base text-text-secondary uppercase tracking-wide font-bold">Add all 32 NFL teams to the database</p>
             </div>
-            <button
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
               onClick={seedTeams}
               disabled={seeding}
-              className="bg-nfl-green hover:shadow-glow-green disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm transition-all"
+              className="bg-nfl-green hover:shadow-glow-green disabled:opacity-50 text-white px-6 py-3 text-base font-bold uppercase tracking-wide transition-all"
             >
               {seeding ? 'Seeding...' : 'Seed Teams'}
-            </button>
+            </motion.button>
           </div>
 
           <div className="flex items-center justify-between">
             <div>
-              <p className="font-medium text-text-primary">Import Schedule from ESPN</p>
-              <p className="text-sm text-text-secondary">Fetch full regular season schedule (all 18 weeks)</p>
+              <p className="text-lg font-bold text-text-primary uppercase tracking-wide">Import Schedule from ESPN</p>
+              <p className="text-base text-text-secondary uppercase tracking-wide font-bold">Fetch full regular season schedule (all 18 weeks)</p>
             </div>
-            <button
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
               onClick={importSchedule}
               disabled={importing}
-              className="bg-nfl-blue hover:shadow-glow disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm transition-all"
+              className="bg-nfl-blue hover:shadow-glow disabled:opacity-50 text-white px-6 py-3 text-base font-bold uppercase tracking-wide transition-all"
             >
               {importing ? 'Importing...' : 'Import Schedule'}
-            </button>
+            </motion.button>
           </div>
         </div>
-      </div>
+      </motion.div>
 
-      <div className="bg-gridiron-surface rounded-xl p-6 border border-gridiron-border neumorphic space-y-3">
-        <h2 className="text-lg font-serif font-semibold text-text-primary">About</h2>
-        <p className="text-sm text-text-secondary">
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3 }}
+        className="bg-gridiron-surface p-6 border-2 border-gridiron-border neumorphic space-y-3"
+      >
+        <h2 className="text-2xl font-serif font-bold text-text-primary uppercase tracking-wide">About</h2>
+        <p className="text-base text-text-secondary uppercase tracking-wide font-bold">
           Redzone NFL Predictions - Track your NFL season predictions including division winners,
           weekly game winners, playoff brackets, awards, and team records.
         </p>
-        <p className="text-sm text-text-secondary">
+        <p className="text-base text-text-secondary uppercase tracking-wide font-bold">
           Scoring: Exact score = 5pts, Correct winner only = 1pt
         </p>
-      </div>
+      </motion.div>
     </div>
   );
 }

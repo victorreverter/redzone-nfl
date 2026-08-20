@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
 import { api } from '../lib/api';
 import { Check } from 'lucide-react';
 
@@ -96,46 +97,62 @@ export function Awards() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl md:text-4xl font-serif font-bold gradient-text">Award Predictions</h1>
-      <p className="text-text-secondary text-sm">Lock date: Week before NFL announcement</p>
+      <motion.h1 
+        initial={{ opacity: 0, x: -20 }}
+        animate={{ opacity: 1, x: 0 }}
+        className="text-4xl md:text-5xl lg:text-6xl font-serif font-bold gradient-text uppercase tracking-tight"
+      >
+        Award Predictions
+      </motion.h1>
+      <p className="text-text-secondary text-base uppercase tracking-wide font-bold">Lock date: Week before NFL announcement</p>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {AWARD_ORDER.map((type) => {
+        {AWARD_ORDER.map((type, index) => {
           const pred = predictions.find((p) => p.award_type === type);
           const form = forms[type] ?? { player_name: '', team_id: '' };
           const isSaved = savedAwards.has(type);
           return (
-            <div key={type} className={`relative bg-gridiron-surface rounded-xl p-4 border-2 transition-all neumorphic ${
-              isSaved ? 'border-nfl-green shadow-glow-green' : 'border-gridiron-border'
-            }`}>
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="font-serif font-semibold text-text-primary">{AWARD_LABELS[type]}</h2>
-                <div className="flex items-center gap-2">
+            <motion.div 
+              key={type}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: index * 0.05 }}
+              className={`relative bg-gridiron-surface p-5 border-2 transition-all neumorphic ${
+                isSaved ? 'border-nfl-green shadow-glow-green' : 'border-gridiron-border'
+              }`}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="font-serif font-bold text-xl text-text-primary uppercase tracking-wide">{AWARD_LABELS[type]}</h2>
+                <div className="flex items-center gap-3">
                   {isSaved && (
-                    <div className="bg-nfl-green rounded-full p-1 animate-check">
-                      <Check size={12} className="text-white" />
-                    </div>
+                    <motion.div 
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      className="bg-nfl-green p-1.5"
+                    >
+                      <Check size={14} className="text-white" />
+                    </motion.div>
                   )}
                   {pred?.locked ? (
-                    <span className="text-xs bg-nfl-red/20 text-nfl-red px-2 py-1 rounded-full font-mono">Locked</span>
+                    <span className="text-sm bg-nfl-red/20 text-nfl-red px-3 py-1 font-mono font-bold uppercase">Locked</span>
                   ) : (
-                    <span className="text-xs bg-nfl-green/20 text-nfl-green px-2 py-1 rounded-full font-mono">Open</span>
+                    <span className="text-sm bg-nfl-green/20 text-nfl-green px-3 py-1 font-mono font-bold uppercase">Open</span>
                   )}
                 </div>
               </div>
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <input
                   type="text"
                   placeholder="Player name"
                   value={form.player_name}
                   onChange={(e) => setForms({ ...forms, [type]: { ...form, player_name: e.target.value } })}
-                  className="w-full bg-gridiron-bg border border-gridiron-border rounded-lg px-3 py-2 text-sm text-text-primary"
+                  className="w-full bg-gridiron-bg border-2 border-gridiron-border px-4 py-3 text-base text-text-primary font-bold"
                   disabled={!!pred?.locked}
                 />
                 <select
                   value={form.team_id}
                   onChange={(e) => setForms({ ...forms, [type]: { ...form, team_id: e.target.value ? Number(e.target.value) : '' } })}
-                  className="w-full bg-gridiron-bg border border-gridiron-border rounded-lg px-3 py-2 text-sm text-text-primary"
+                  className="w-full bg-gridiron-bg border-2 border-gridiron-border px-4 py-3 text-base text-text-primary font-bold"
                   disabled={!!pred?.locked}
                 >
                   <option value="">Select team (optional)</option>
@@ -143,15 +160,17 @@ export function Awards() {
                     <option key={t.id} value={t.id}>{t.city} {t.name}</option>
                   ))}
                 </select>
-                <button
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                   onClick={() => saveAward(type)}
                   disabled={!!pred?.locked}
-                  className="w-full bg-gradient-to-r from-nfl-red to-nfl-blue hover:shadow-glow disabled:opacity-50 text-white text-sm py-2 rounded-lg transition-all"
+                  className="w-full bg-gradient-to-r from-nfl-red to-nfl-blue hover:shadow-glow disabled:opacity-50 text-white text-base font-bold uppercase tracking-wide py-3 transition-all"
                 >
                   {isSaved ? 'Update' : 'Save'}
-                </button>
+                </motion.button>
               </div>
-            </div>
+            </motion.div>
           );
         })}
       </div>

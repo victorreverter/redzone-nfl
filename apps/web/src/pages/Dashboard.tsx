@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
 import { api } from '../lib/api';
 import { Trophy, TrendingUp, Target, Award } from 'lucide-react';
 
@@ -50,63 +51,96 @@ export function Dashboard() {
   if (!currentSeason) {
     return (
       <div className="flex flex-col items-center justify-center h-64 gap-4">
-        <Trophy size={48} className="text-nfl-blue" />
-        <h2 className="text-xl font-serif font-bold text-text-primary">Welcome to Redzone NFL</h2>
-        <p className="text-text-secondary">Go to Settings to create your 2026 season</p>
+        <Trophy size={64} className="text-nfl-blue" />
+        <h2 className="text-3xl font-serif font-bold text-text-primary uppercase tracking-wide">Welcome to Redzone NFL</h2>
+        <p className="text-text-secondary text-lg uppercase tracking-wide font-bold">Go to Settings to create your 2026 season</p>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl md:text-4xl font-serif font-bold gradient-text">
+      <motion.h1 
+        initial={{ opacity: 0, x: -20 }}
+        animate={{ opacity: 1, x: 0 }}
+        className="text-4xl md:text-5xl lg:text-6xl font-serif font-bold gradient-text uppercase tracking-tight"
+      >
         {currentSeason.year} Season Dashboard
-      </h1>
+      </motion.h1>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          icon={<Trophy className="text-nfl-yellow" />}
-          label="Total Points"
-          value={score.total}
-        />
-        <StatCard
-          icon={<Target className="text-nfl-green" />}
-          label="Weekly Points"
-          value={score.weekly}
-        />
-        <StatCard
-          icon={<TrendingUp className="text-nfl-blue" />}
-          label="Playoff Points"
-          value={score.playoff}
-        />
-        <StatCard
-          icon={<Award className="text-nfl-red" />}
-          label="Season Status"
-          value={currentSeason.status}
-        />
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+        >
+          <StatCard
+            icon={<Trophy className="text-nfl-yellow" size={32} />}
+            label="Total Points"
+            value={score.total}
+          />
+        </motion.div>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+        >
+          <StatCard
+            icon={<Target className="text-nfl-green" size={32} />}
+            label="Weekly Points"
+            value={score.weekly}
+          />
+        </motion.div>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+        >
+          <StatCard
+            icon={<TrendingUp className="text-nfl-blue" size={32} />}
+            label="Playoff Points"
+            value={score.playoff}
+          />
+        </motion.div>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+        >
+          <StatCard
+            icon={<Award className="text-nfl-red" size={32} />}
+            label="Season Status"
+            value={currentSeason.status}
+          />
+        </motion.div>
       </div>
 
-      <div className="bg-gridiron-surface rounded-xl p-6 border border-gridiron-border neumorphic">
-        <h2 className="text-lg font-serif font-semibold mb-4 text-text-primary">Quick Actions</h2>
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.5 }}
+        className="bg-gridiron-surface p-6 border-2 border-gridiron-border neumorphic"
+      >
+        <h2 className="text-2xl font-serif font-bold mb-5 text-text-primary uppercase tracking-wide">Quick Actions</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <QuickLink to="/schedule" label="Make Predictions" />
           <QuickLink to="/standings" label="View Standings" />
           <QuickLink to="/awards" label="Predict Awards" />
           <QuickLink to="/records" label="Team Records" />
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }
 
 function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: string | number }) {
   return (
-    <div className="bg-gridiron-surface rounded-xl p-4 border border-gridiron-border neumorphic">
-      <div className="flex items-center gap-3">
+    <div className="bg-gridiron-surface p-5 border-2 border-gridiron-border neumorphic">
+      <div className="flex items-center gap-4">
         {icon}
         <div>
-          <p className="text-sm text-text-secondary">{label}</p>
-          <p className="text-2xl font-bold font-mono text-text-primary">{value}</p>
+          <p className="text-base text-text-secondary uppercase tracking-wide font-bold">{label}</p>
+          <p className="text-4xl font-bold font-mono text-text-primary">{value}</p>
         </div>
       </div>
     </div>
@@ -115,11 +149,13 @@ function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string
 
 function QuickLink({ to, label }: { to: string; label: string }) {
   return (
-    <a
+    <motion.a
+      whileHover={{ scale: 1.05 }}
+      whileTap={{ scale: 0.95 }}
       href={to}
-      className="bg-gridiron-surface-hover hover:bg-gridiron-border rounded-lg p-3 text-center text-sm font-medium text-text-primary transition-all"
+      className="bg-gridiron-surface-hover hover:bg-gridiron-border p-4 text-center text-base font-bold text-text-primary uppercase tracking-wide transition-all border-l-4 border-transparent hover:border-nfl-blue"
     >
       {label}
-    </a>
+    </motion.a>
   );
 }

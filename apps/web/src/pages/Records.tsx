@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
 import { api } from '../lib/api';
 import { Check } from 'lucide-react';
 
@@ -146,26 +147,39 @@ export function Records() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl md:text-4xl font-serif font-bold gradient-text">Team Record Predictions</h1>
-        <button
+        <motion.h1 
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="text-4xl md:text-5xl lg:text-6xl font-serif font-bold gradient-text uppercase tracking-tight"
+        >
+          Team Record Predictions
+        </motion.h1>
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
           onClick={handleSaveAll}
           disabled={saving}
-          className={`text-white px-4 py-2 rounded-lg text-sm transition-all ${
+          className={`text-white px-6 py-3 text-sm font-bold uppercase tracking-wide transition-all ${
             saving ? 'bg-text-muted' : 'bg-gradient-to-r from-nfl-red to-nfl-blue hover:shadow-glow'
           }`}
         >
           {saving ? 'Saving...' : 'Save All'}
-        </button>
+        </motion.button>
       </div>
 
       {teams.length === 0 ? (
-        <div className="bg-gridiron-surface rounded-xl p-8 border border-gridiron-border text-center text-text-secondary neumorphic">
+        <div className="bg-gridiron-surface p-8 border-2 border-gridiron-border text-center text-text-secondary neumorphic">
           Seed teams first in Settings
         </div>
       ) : (
         conferences.map((conf) => (
-          <div key={conf}>
-            <h2 className="text-3xl font-serif font-bold text-text-primary mb-4 pb-2 border-b-2 border-nfl-blue">{conf}</h2>
+          <motion.div 
+            key={conf}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+          >
+            <h2 className="text-4xl md:text-5xl font-serif font-bold text-text-primary mb-5 pb-3 border-b-4 border-nfl-blue uppercase tracking-tight">{conf}</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {divisions.map((div) => {
                 const key = `${conf}-${div}`;
@@ -185,15 +199,19 @@ export function Records() {
                   });
                 const isSaved = savedDivisions.has(key);
                 return (
-                  <div key={div} className={`bg-gridiron-surface rounded-xl p-4 border-2 transition-all neumorphic ${
+                  <div key={div} className={`bg-gridiron-surface p-5 border-2 transition-all neumorphic ${
                     isSaved ? 'border-nfl-green shadow-glow-green' : 'border-gridiron-border'
                   }`}>
-                    <div className="flex items-center justify-between mb-3">
-                      <h3 className="font-semibold text-sm text-text-secondary">{conf} {div}</h3>
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="font-bold text-base text-text-secondary uppercase tracking-wide">{conf} {div}</h3>
                       {isSaved && (
-                        <div className="bg-nfl-green rounded-full p-1 animate-check">
-                          <Check size={12} className="text-white" />
-                        </div>
+                        <motion.div 
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                          className="bg-nfl-green p-1.5"
+                        >
+                          <Check size={14} className="text-white" />
+                        </motion.div>
                       )}
                     </div>
                     <div className="space-y-3">
@@ -206,16 +224,20 @@ export function Records() {
                         const isTeamSaved = savedTeams.has(team.id);
                         
                         return (
-                          <div key={team.id} className={`relative p-3 rounded-lg transition-all ${
-                            isTeamSaved ? 'bg-gridiron-surface-hover border border-nfl-green/30' : 'bg-gridiron-surface-hover'
-                          }`}>
-                            <div className="flex items-center gap-2 mb-2">
+                          <motion.div 
+                            key={team.id}
+                            whileHover={{ scale: 1.02 }}
+                            className={`p-4 transition-all ${
+                              isTeamSaved ? 'bg-gridiron-surface-hover border-l-4 border-nfl-green/50' : 'bg-gridiron-surface-hover border-l-4 border-transparent'
+                            }`}
+                          >
+                            <div className="flex items-center gap-3 mb-3">
                               {team.logo_url && (
-                                <img src={team.logo_url} alt={team.abbreviation} className="w-6 h-6 object-contain" />
+                                <img src={team.logo_url} alt={team.abbreviation} className="w-8 h-8 object-contain" />
                               )}
-                              <span className="text-sm font-medium text-text-primary">{team.city} {team.name}</span>
+                              <span className="text-base font-bold text-text-primary uppercase tracking-wide">{team.city} {team.name}</span>
                             </div>
-                            <div className="flex gap-2 items-center">
+                            <div className="flex gap-3 items-center">
                               <input
                                 type="number"
                                 min="0"
@@ -223,9 +245,9 @@ export function Records() {
                                 placeholder="W"
                                 value={rec.wins}
                                 onChange={(e) => updateRecord(team.id, 'wins', e.target.value)}
-                                className="w-16 bg-gridiron-bg border border-gridiron-border rounded px-2 py-1 text-sm text-center text-text-primary font-mono"
+                                className="w-20 bg-gridiron-bg border-2 border-gridiron-border px-3 py-2 text-base text-center text-text-primary font-mono font-bold"
                               />
-                              <span className="text-text-muted font-mono">-</span>
+                              <span className="text-text-muted text-lg font-mono font-bold">-</span>
                               <input
                                 type="number"
                                 min="0"
@@ -233,10 +255,10 @@ export function Records() {
                                 placeholder="L"
                                 value={rec.losses}
                                 onChange={(e) => updateRecord(team.id, 'losses', e.target.value)}
-                                className="w-16 bg-gridiron-bg border border-gridiron-border rounded px-2 py-1 text-sm text-center text-text-primary font-mono"
+                                className="w-20 bg-gridiron-bg border-2 border-gridiron-border px-3 py-2 text-base text-center text-text-primary font-mono font-bold"
                               />
                             </div>
-                          </div>
+                          </motion.div>
                         );
                       })}
                     </div>
@@ -244,7 +266,7 @@ export function Records() {
                 );
               })}
             </div>
-          </div>
+          </motion.div>
         ))
       )}
     </div>

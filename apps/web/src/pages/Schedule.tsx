@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
 import { api } from '../lib/api';
 import { Check, RefreshCw } from 'lucide-react';
 
@@ -139,22 +140,30 @@ export function Schedule() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl md:text-4xl font-serif font-bold gradient-text">Weekly Schedule</h1>
+        <motion.h1 
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="text-4xl md:text-5xl lg:text-6xl font-serif font-bold gradient-text uppercase tracking-tight"
+        >
+          Weekly Schedule
+        </motion.h1>
         <div className="flex items-center gap-3">
-          <button
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
             onClick={syncResults}
             disabled={syncing}
-            className={`flex items-center gap-2 text-white text-sm px-4 py-2 rounded-lg transition-all ${
+            className={`flex items-center gap-2 text-white text-sm px-5 py-2.5 font-bold uppercase tracking-wide transition-all ${
               syncing ? 'bg-text-muted' : 'bg-nfl-red hover:bg-red-700 shadow-glow-red'
             }`}
           >
             <RefreshCw size={16} className={syncing ? 'animate-spin' : ''} />
             {syncing ? 'Syncing...' : 'Sync Results'}
-          </button>
+          </motion.button>
           <select
             value={selectedWeek}
             onChange={(e) => setSelectedWeek(Number(e.target.value))}
-            className="bg-gridiron-surface border border-gridiron-border rounded-lg px-3 py-2 text-sm text-text-primary"
+            className="bg-gridiron-surface border-2 border-gridiron-border px-4 py-2.5 text-base font-bold text-text-primary uppercase"
           >
             {Array.from({ length: 22 }, (_, i) => i + 1).map((w) => (
               <option key={w} value={w}>Week {w}</option>
@@ -211,135 +220,160 @@ function GameCard({ game, onSave, isSaved }: { game: Game; onSave: (gameId: numb
   }
 
   return (
-    <div className={`relative bg-gridiron-surface rounded-xl p-4 border-2 transition-all neumorphic ${
-      isSaved ? 'border-nfl-green shadow-glow-green' : 'border-gridiron-border'
-    }`}>
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className={`relative bg-gridiron-surface p-5 border-2 transition-all neumorphic ${
+        isSaved ? 'border-nfl-green shadow-glow-green' : 'border-gridiron-border'
+      }`}
+    >
       {isSaved && (
-        <div className="absolute top-2 right-2 bg-nfl-green rounded-full p-1 animate-check">
-          <Check size={14} className="text-white" />
-        </div>
+        <motion.div 
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          className="absolute top-3 right-3 bg-nfl-green p-1.5"
+        >
+          <Check size={16} className="text-white" />
+        </motion.div>
       )}
 
       <div className="flex items-center justify-between mb-4">
-        <span className="text-xs text-text-muted font-mono">
+        <span className="text-sm text-text-muted font-mono uppercase tracking-wide">
           {game.game_time ? new Date(game.game_time).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : 'TBD'}
         </span>
         {game.points_earned > 0 && (
-          <span className="text-xs bg-nfl-green/20 text-nfl-green px-2 py-1 rounded-full font-mono font-bold">
+          <span className="text-sm bg-nfl-green/20 text-nfl-green px-3 py-1 font-mono font-bold uppercase">
             +{game.points_earned} pts
           </span>
         )}
       </div>
 
-      <div className="grid grid-cols-3 gap-3 items-center">
-        <button
+      <div className="grid grid-cols-3 gap-4 items-center">
+        <motion.button
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
           onClick={() => setSelected(game.home_team_id)}
-          className={`text-center p-4 rounded-lg transition-all ${
+          className={`text-center p-5 transition-all ${
             selected === game.home_team_id 
               ? 'bg-nfl-blue/20 ring-2 ring-nfl-blue shadow-glow' 
               : 'bg-gridiron-surface-hover hover:bg-gridiron-border'
           } ${isFinal && actualWinner === game.home_team_id ? 'ring-2 ring-nfl-green shadow-glow-green' : ''}`}
         >
           {game.home_team_logo && (
-            <img src={game.home_team_logo} alt={game.home_team_abbr} className="w-12 h-12 mx-auto mb-2 object-contain" />
+            <img src={game.home_team_logo} alt={game.home_team_abbr} className="w-16 h-16 mx-auto mb-2 object-contain" />
           )}
-          <span className="text-sm font-bold hidden md:block text-text-primary">{game.home_team_city} {game.home_team_name}</span>
-          <span className="text-sm font-bold md:hidden text-text-primary">{game.home_team_abbr}</span>
-        </button>
+          <span className="text-base font-bold hidden md:block text-text-primary uppercase tracking-wide">{game.home_team_city} {game.home_team_name}</span>
+          <span className="text-base font-bold md:hidden text-text-primary uppercase">{game.home_team_abbr}</span>
+        </motion.button>
 
         <div className="text-center">
-          <div className="text-text-muted text-sm mb-2 font-mono">@</div>
-          <button
+          <div className="text-text-muted text-lg mb-2 font-mono font-bold">@</div>
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
             onClick={() => setSelected(null)}
-            className={`text-xs px-3 py-1.5 rounded transition-all ${
+            className={`text-sm px-4 py-2 font-bold uppercase tracking-wide transition-all ${
               selected === null ? 'bg-text-muted text-text-primary' : 'bg-gridiron-surface-hover text-text-secondary hover:bg-gridiron-border'
             }`}
           >
             Tie
-          </button>
+          </motion.button>
         </div>
 
-        <button
+        <motion.button
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
           onClick={() => setSelected(game.away_team_id)}
-          className={`text-center p-4 rounded-lg transition-all ${
+          className={`text-center p-5 transition-all ${
             selected === game.away_team_id 
               ? 'bg-nfl-blue/20 ring-2 ring-nfl-blue shadow-glow' 
               : 'bg-gridiron-surface-hover hover:bg-gridiron-border'
           } ${isFinal && actualWinner === game.away_team_id ? 'ring-2 ring-nfl-green shadow-glow-green' : ''}`}
         >
           {game.away_team_logo && (
-            <img src={game.away_team_logo} alt={game.away_team_abbr} className="w-12 h-12 mx-auto mb-2 object-contain" />
+            <img src={game.away_team_logo} alt={game.away_team_abbr} className="w-16 h-16 mx-auto mb-2 object-contain" />
           )}
-          <span className="text-sm font-bold hidden md:block text-text-primary">{game.away_team_city} {game.away_team_name}</span>
-          <span className="text-sm font-bold md:hidden text-text-primary">{game.away_team_abbr}</span>
-        </button>
+          <span className="text-base font-bold hidden md:block text-text-primary uppercase tracking-wide">{game.away_team_city} {game.away_team_name}</span>
+          <span className="text-base font-bold md:hidden text-text-primary uppercase">{game.away_team_abbr}</span>
+        </motion.button>
       </div>
 
       {/* Prediction inputs with official score */}
-      <div className="mt-4 flex gap-3 items-center flex-wrap">
+      <div className="mt-5 flex gap-3 items-center flex-wrap">
         <div className="flex items-center gap-2">
-          <div className="text-xs text-text-secondary">Your prediction:</div>
+          <div className="text-sm text-text-secondary font-bold uppercase tracking-wide">Your prediction:</div>
           <input
             type="number"
             placeholder="Home"
             value={homeScore}
             onChange={(e) => setHomeScore(e.target.value)}
-            className="w-16 bg-gridiron-bg border border-gridiron-border rounded px-2 py-1 text-sm text-center text-text-primary font-mono"
+            className="w-20 bg-gridiron-bg border-2 border-gridiron-border px-3 py-2 text-base text-center text-text-primary font-mono font-bold"
           />
-          <span className="text-text-muted text-sm font-mono">-</span>
+          <span className="text-text-muted text-lg font-mono font-bold">-</span>
           <input
             type="number"
             placeholder="Away"
             value={awayScore}
             onChange={(e) => setAwayScore(e.target.value)}
-            className="w-16 bg-gridiron-bg border border-gridiron-border rounded px-2 py-1 text-sm text-center text-text-primary font-mono"
+            className="w-20 bg-gridiron-bg border-2 border-gridiron-border px-3 py-2 text-base text-center text-text-primary font-mono font-bold"
           />
         </div>
         
         <div className="flex items-center gap-2">
-          <div className="text-xs text-text-secondary">Official:</div>
+          <div className="text-sm text-text-secondary font-bold uppercase tracking-wide">Official:</div>
           {isFinal && actualHomeScore !== null && actualAwayScore !== null ? (
-            <div className="flex items-center gap-1 bg-gridiron-bg border-2 border-nfl-blue rounded px-3 py-1 glow-blue">
-              <span className="text-sm font-bold text-text-primary font-mono">{actualHomeScore}</span>
-              <span className="text-text-muted font-mono">-</span>
-              <span className="text-sm font-bold text-text-primary font-mono">{actualAwayScore}</span>
-            </div>
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="flex items-center gap-2 bg-gridiron-bg border-2 border-nfl-blue px-4 py-2 glow-blue"
+            >
+              <span className="text-lg font-bold text-text-primary font-mono">{actualHomeScore}</span>
+              <span className="text-text-muted font-mono font-bold">-</span>
+              <span className="text-lg font-bold text-text-primary font-mono">{actualAwayScore}</span>
+            </motion.div>
           ) : (
-            <div className="flex items-center gap-1 bg-gridiron-bg border-2 border-dashed border-gridiron-border rounded px-3 py-1">
-              <span className="text-xs text-text-muted italic">TBD</span>
+            <div className="flex items-center gap-2 bg-gridiron-bg border-2 border-dashed border-gridiron-border px-4 py-2">
+              <span className="text-sm text-text-muted italic uppercase">TBD</span>
             </div>
           )}
         </div>
         
-        <button
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
           onClick={handleSave}
           disabled={saving}
-          className={`ml-auto text-white text-sm px-4 py-1.5 rounded-lg transition-all ${
+          className={`ml-auto text-white text-sm px-6 py-2.5 font-bold uppercase tracking-wide transition-all ${
             saving ? 'bg-text-muted' : 'bg-gradient-to-r from-nfl-red to-nfl-blue hover:shadow-glow'
           }`}
         >
           {saving ? 'Saving...' : isSaved ? 'Update' : 'Save'}
-        </button>
+        </motion.button>
       </div>
 
       {/* Result badge */}
       {isFinal && isSaved && (
-        <div className="mt-3 flex justify-end">
+        <motion.div 
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mt-4 flex justify-end"
+        >
           {exactScore ? (
-            <span className="text-xs bg-nfl-green/20 text-nfl-green px-2 py-1 rounded-full font-mono font-bold">
+            <span className="text-sm bg-nfl-green/20 text-nfl-green px-3 py-1.5 font-mono font-bold uppercase">
               Exact Score! +5 pts
             </span>
           ) : predictionCorrect ? (
-            <span className="text-xs bg-nfl-blue/20 text-nfl-blue px-2 py-1 rounded-full font-mono font-bold">
+            <span className="text-sm bg-nfl-blue/20 text-nfl-blue px-3 py-1.5 font-mono font-bold uppercase">
               Correct Winner +1 pt
             </span>
           ) : (
-            <span className="text-xs bg-nfl-red/20 text-nfl-red px-2 py-1 rounded-full font-mono font-bold">
+            <span className="text-sm bg-nfl-red/20 text-nfl-red px-3 py-1.5 font-mono font-bold uppercase">
               Wrong Prediction
             </span>
           )}
-        </div>
+        </motion.div>
       )}
-    </div>
+    </motion.div>
   );
 }

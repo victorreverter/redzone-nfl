@@ -17,11 +17,11 @@ export function Layout({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex flex-col min-h-dvh">
-      <header className="bg-gridiron-surface border-b border-gridiron-border sticky top-0 z-50 neumorphic">
+      <header className="bg-gridiron-surface border-b-2 border-gridiron-border sticky top-0 z-50 neumorphic">
         <div className="flex items-center justify-between px-4 h-16">
-          <NavLink to="/" className="flex items-center gap-2">
-            <span className="text-3xl">🏈</span>
-            <span className="font-serif font-bold text-xl text-text-primary">Redzone NFL</span>
+          <NavLink to="/" className="flex items-center gap-3">
+            <span className="text-4xl">🏈</span>
+            <span className="font-serif font-bold text-2xl text-text-primary uppercase tracking-wider">Redzone NFL</span>
           </NavLink>
           <button
             onClick={() => setOpen(!open)}
@@ -35,9 +35,9 @@ export function Layout({ children }: { children: ReactNode }) {
       <div className="flex flex-1">
         <nav
           className={`
-            fixed inset-y-0 left-0 z-40 w-64 bg-gridiron-surface border-r border-gridiron-border 
+            fixed inset-y-0 left-0 z-40 w-64 bg-gridiron-surface border-r-2 border-gridiron-border 
             transform transition-transform duration-200 ease-in-out
-            lg:translate-x-0 lg:static lg:w-56 lg:flex-shrink-0
+            lg:translate-x-0 lg:static lg:w-64 lg:flex-shrink-0
             ${open ? 'translate-x-0' : '-translate-x-full'}
             pt-16 lg:pt-0
           `}
@@ -49,15 +49,15 @@ export function Layout({ children }: { children: ReactNode }) {
                 to={item.to}
                 onClick={() => setOpen(false)}
                 className={({ isActive }) =>
-                  `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                  `flex items-center gap-3 px-4 py-3 text-base font-bold uppercase tracking-wide transition-all ${
                     isActive
-                      ? 'bg-gradient-to-r from-nfl-red to-nfl-blue text-white shadow-glow'
-                      : 'text-text-secondary hover:text-text-primary hover:bg-gridiron-surface-hover'
+                      ? 'bg-gradient-to-r from-nfl-red to-nfl-blue text-white shadow-glow border-l-4 border-nfl-red'
+                      : 'text-text-secondary hover:text-text-primary hover:bg-gridiron-surface-hover border-l-4 border-transparent'
                   }`
                 }
                 end={item.to === '/'}
               >
-                <item.icon size={18} />
+                <item.icon size={20} />
                 {item.label}
               </NavLink>
             ))}

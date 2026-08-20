@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
+import { motion } from 'framer-motion';
 import { api } from '../lib/api';
 import { Check, GripVertical } from 'lucide-react';
 
@@ -153,26 +154,39 @@ export function Standings() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl md:text-4xl font-serif font-bold gradient-text">Division Predictions</h1>
-        <button
+        <motion.h1 
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="text-4xl md:text-5xl lg:text-6xl font-serif font-bold gradient-text uppercase tracking-tight"
+        >
+          Division Predictions
+        </motion.h1>
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
           onClick={handleSaveAll}
           disabled={saving}
-          className={`text-white px-4 py-2 rounded-lg text-sm transition-all ${
+          className={`text-white px-6 py-3 text-sm font-bold uppercase tracking-wide transition-all ${
             saving ? 'bg-text-muted' : 'bg-gradient-to-r from-nfl-red to-nfl-blue hover:shadow-glow'
           }`}
         >
           {saving ? 'Saving...' : 'Save All'}
-        </button>
+        </motion.button>
       </div>
 
       {teams.length === 0 ? (
-        <div className="bg-gridiron-surface rounded-xl p-8 border border-gridiron-border text-center text-text-secondary neumorphic">
+        <div className="bg-gridiron-surface p-8 border-2 border-gridiron-border text-center text-text-secondary neumorphic">
           Seed teams first in Settings
         </div>
       ) : (
         conferences.map((conf) => (
-          <div key={conf}>
-            <h2 className="text-3xl font-serif font-bold text-text-primary mb-4 pb-2 border-b-2 border-nfl-blue">{conf}</h2>
+          <motion.div 
+            key={conf}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+          >
+            <h2 className="text-4xl md:text-5xl font-serif font-bold text-text-primary mb-5 pb-3 border-b-4 border-nfl-blue uppercase tracking-tight">{conf}</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {divisions.map((div) => {
                 const key = `${conf}-${div}`;
@@ -181,15 +195,19 @@ export function Standings() {
                 const isSaved = savedDivisions.has(key);
 
                 return (
-                  <div key={div} className={`bg-gridiron-surface rounded-xl p-4 border-2 transition-all neumorphic ${
+                  <div key={div} className={`bg-gridiron-surface p-5 border-2 transition-all neumorphic ${
                     isSaved ? 'border-nfl-green shadow-glow-green' : 'border-gridiron-border'
                   }`}>
-                    <div className="flex items-center justify-between mb-3">
-                      <h3 className="font-semibold text-sm text-text-secondary">{conf} {div}</h3>
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="font-bold text-base text-text-secondary uppercase tracking-wide">{conf} {div}</h3>
                       {isSaved && (
-                        <div className="bg-nfl-green rounded-full p-1 animate-check">
-                          <Check size={12} className="text-white" />
-                        </div>
+                        <motion.div 
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                          className="bg-nfl-green p-1.5"
+                        >
+                          <Check size={14} className="text-white" />
+                        </motion.div>
                       )}
                     </div>
                     <div className="space-y-2">
@@ -197,22 +215,23 @@ export function Standings() {
                         const team = divTeams.find(t => t.id === teamId);
                         if (!team) return null;
                         return (
-                          <div
+                          <motion.div
                             key={teamId}
                             draggable
                             onDragStart={() => handleDragStart(key, index)}
                             onDragEnter={() => handleDragEnter(key, index)}
                             onDragEnd={() => handleDragEnd(key)}
                             onDragOver={(e) => e.preventDefault()}
-                            className="flex items-center gap-2 bg-gridiron-surface-hover rounded-lg p-2 cursor-grab active:cursor-grabbing hover:bg-gridiron-border transition-all"
+                            whileHover={{ scale: 1.02, x: 5 }}
+                            className="flex items-center gap-3 bg-gridiron-surface-hover p-3 cursor-grab active:cursor-grabbing hover:bg-gridiron-border transition-all border-l-4 border-transparent hover:border-nfl-blue"
                           >
-                            <GripVertical size={16} className="text-text-muted" />
-                            <span className="text-xs text-text-muted w-4 font-mono">{index + 1}</span>
+                            <GripVertical size={18} className="text-text-muted" />
+                            <span className="text-base text-text-muted w-6 font-mono font-bold">{index + 1}</span>
                             {team.logo_url && (
-                              <img src={team.logo_url} alt={team.abbreviation} className="w-6 h-6 object-contain" />
+                              <img src={team.logo_url} alt={team.abbreviation} className="w-8 h-8 object-contain" />
                             )}
-                            <span className="flex-1 text-sm text-text-primary">{team.city} {team.name}</span>
-                          </div>
+                            <span className="flex-1 text-base text-text-primary font-bold uppercase tracking-wide">{team.city} {team.name}</span>
+                          </motion.div>
                         );
                       })}
                     </div>
@@ -220,7 +239,7 @@ export function Standings() {
                 );
               })}
             </div>
-          </div>
+          </motion.div>
         ))
       )}
     </div>
