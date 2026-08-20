@@ -169,7 +169,20 @@ export function Records() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {divisions.map((div) => {
                 const key = `${conf}-${div}`;
-                const divTeams = teams.filter((t) => t.conference === conf && t.division === div);
+                const divTeams = teams
+                  .filter((t) => t.conference === conf && t.division === div)
+                  .sort((a, b) => {
+                    const recA = records[a.id] ?? { wins: '', losses: '' };
+                    const recB = records[b.id] ?? { wins: '', losses: '' };
+                    const winsA = recA.wins === '' ? -1 : parseInt(recA.wins) || 0;
+                    const winsB = recB.wins === '' ? -1 : parseInt(recB.wins) || 0;
+                    const lossesA = recA.losses === '' ? 999 : parseInt(recA.losses) || 0;
+                    const lossesB = recB.losses === '' ? 999 : parseInt(recB.losses) || 0;
+                    
+                    // Sort by wins descending, then losses ascending
+                    if (winsB !== winsA) return winsB - winsA;
+                    return lossesA - lossesB;
+                  });
                 const isSaved = savedDivisions.has(key);
                 return (
                   <div key={div} className={`bg-dark-800 rounded-xl p-4 border-2 transition-all ${
