@@ -292,16 +292,20 @@ function GameCard({ game, onSave, isSaved }: { game: Game; onSave: (gameId: numb
           />
         </div>
         
-        {isFinal && actualHomeScore !== null && actualAwayScore !== null && (
-          <div className="flex items-center gap-2">
-            <div className="text-xs text-gray-400">Official:</div>
-            <div className="flex items-center gap-1 bg-dark-900 border border-dark-500 rounded px-3 py-1">
+        <div className="flex items-center gap-2">
+          <div className="text-xs text-gray-400">Official:</div>
+          {isFinal && actualHomeScore !== null && actualAwayScore !== null ? (
+            <div className="flex items-center gap-1 bg-dark-900 border-2 border-nfl-blue rounded px-3 py-1">
               <span className="text-sm font-bold text-white">{actualHomeScore}</span>
               <span className="text-gray-500">-</span>
               <span className="text-sm font-bold text-white">{actualAwayScore}</span>
             </div>
-          </div>
-        )}
+          ) : (
+            <div className="flex items-center gap-1 bg-dark-900 border-2 border-dashed border-gray-600 rounded px-3 py-1">
+              <span className="text-xs text-gray-500 italic">TBD</span>
+            </div>
+          )}
+        </div>
         
         <button
           onClick={handleSave}
