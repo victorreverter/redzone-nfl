@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { api } from '../lib/api';
+import { shortenCity } from '../lib/utils';
 import { Check, RefreshCw } from 'lucide-react';
 
 interface Game {
@@ -134,7 +135,7 @@ export function Schedule() {
   }
 
   if (!seasonId) {
-    return <div className="text-center text-gray-400 mt-12">Create a season first in Settings</div>;
+    return <div className="text-center text-text-secondary mt-12 uppercase tracking-wide">Create a season first in Settings</div>;
   }
 
   return (
@@ -154,7 +155,7 @@ export function Schedule() {
             onClick={syncResults}
             disabled={syncing}
             className={`flex items-center gap-2 text-white text-sm px-5 py-2.5 font-bold uppercase tracking-wide transition-all ${
-              syncing ? 'bg-text-muted' : 'bg-nfl-red hover:bg-red-700 shadow-glow-red'
+              syncing ? 'bg-text-muted' : 'bg-nfl-red hover:bg-red-800 shadow-glow-red'
             }`}
           >
             <RefreshCw size={16} className={syncing ? 'animate-spin' : ''} />
@@ -173,7 +174,7 @@ export function Schedule() {
       </div>
 
       {games.length === 0 ? (
-        <div className="bg-dark-800 rounded-xl p-8 border border-dark-600 text-center text-gray-400">
+        <div className="bg-gridiron-surface p-8 border-2 border-gridiron-border text-center text-text-secondary">
           No games for this week yet. Import schedule from Settings.
         </div>
       ) : (
@@ -263,7 +264,7 @@ function GameCard({ game, onSave, isSaved }: { game: Game; onSave: (gameId: numb
           {game.home_team_logo && (
             <img src={game.home_team_logo} alt={game.home_team_abbr} className="w-16 h-16 mx-auto mb-2 object-contain" />
           )}
-          <span className="text-base font-bold hidden md:block text-text-primary uppercase tracking-wide">{game.home_team_city} {game.home_team_name}</span>
+          <span className="text-base font-bold hidden md:block text-text-primary uppercase tracking-wide">{shortenCity(game.home_team_city)} {game.home_team_name}</span>
           <span className="text-base font-bold md:hidden text-text-primary uppercase">{game.home_team_abbr}</span>
         </motion.button>
 
@@ -294,7 +295,7 @@ function GameCard({ game, onSave, isSaved }: { game: Game; onSave: (gameId: numb
           {game.away_team_logo && (
             <img src={game.away_team_logo} alt={game.away_team_abbr} className="w-16 h-16 mx-auto mb-2 object-contain" />
           )}
-          <span className="text-base font-bold hidden md:block text-text-primary uppercase tracking-wide">{game.away_team_city} {game.away_team_name}</span>
+          <span className="text-base font-bold hidden md:block text-text-primary uppercase tracking-wide">{shortenCity(game.away_team_city)} {game.away_team_name}</span>
           <span className="text-base font-bold md:hidden text-text-primary uppercase">{game.away_team_abbr}</span>
         </motion.button>
       </div>

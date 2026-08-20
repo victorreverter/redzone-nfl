@@ -12,6 +12,19 @@ body {
   position: relative;
 }
 
+.app-backdrop {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    linear-gradient(180deg, rgba(10, 10, 15, 0.56), #0a0a0f 68%),
+    radial-gradient(circle at 16% 12%, rgba(224, 74, 42, 0.18), transparent 28%),
+    radial-gradient(circle at 86% 16%, rgba(46, 127, 164, 0.2), transparent 30%),
+    url('/stadium-hero.png') center top / cover no-repeat;
+  opacity: 0.34;
+}
+
 /* Paper texture overlay */
 body::before {
   content: '';
@@ -33,6 +46,12 @@ body::before {
   flex-direction: column;
   position: relative;
   z-index: 2;
+}
+
+.field-hero {
+  background:
+    linear-gradient(90deg, rgba(10, 10, 15, 0.94) 0%, rgba(10, 10, 15, 0.78) 48%, rgba(10, 10, 15, 0.5) 100%),
+    url('/stadium-hero.png') center 58% / cover no-repeat;
 }
 
 /* Hide number input spinners */
@@ -78,38 +97,10 @@ input[type="number"] {
   animation: glow-green-pulse 2s ease-in-out infinite;
 }
 
-/* Checkmark animation */
-@keyframes check-pop {
-  0% {
-    transform: scale(0);
-    opacity: 0;
-  }
-  50% {
-    transform: scale(1.2);
-  }
-  100% {
-    transform: scale(1);
-    opacity: 1;
-  }
-}
-
-.animate-check {
-  animation: check-pop 0.3s ease-out;
-}
-
 /* Gradient text */
 .gradient-text {
   background: linear-gradient(135deg, #e04a2a 0%, #2e7fa4 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-}
-
-/* Angular clip paths */
-.clip-angle {
-  clip-path: polygon(0 0, 100% 0, 100% 85%, 0 100%);
-}
-
-.clip-angle-reverse {
-  clip-path: polygon(0 0, 100% 0, 100% 100%, 0 85%);
 }

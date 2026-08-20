@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { api } from '../lib/api';
+import { shortenCity } from '../lib/utils';
 import { Check } from 'lucide-react';
 
 interface AwardPred {
@@ -21,15 +22,37 @@ interface Team {
   logo_url: string | null;
 }
 
-const AWARD_LABELS: Record<string, string> = {
-  mvp: 'MVP',
-  opoy: 'Offensive Player of the Year',
-  dpoy: 'Defensive Player of the Year',
-  offensive_roty: 'Offensive Rookie of the Year',
-  defensive_roty: 'Defensive Rookie of the Year',
-  coach_of_year: 'Coach of the Year',
-  comeback_player: 'Comeback Player of the Year',
-  super_bowl_mvp: 'Super Bowl MVP',
+interface AwardMedia {
+  src: string;
+  aspectClass: string;
+  position: string;
+}
+
+interface AwardTitle {
+  short: string;
+  detail: string;
+}
+
+const AWARD_TITLES: Record<string, AwardTitle> = {
+  mvp: { short: 'MVP', detail: 'Most Valuable Player' },
+  opoy: { short: 'OPOY', detail: 'Offensive Player of the Year' },
+  dpoy: { short: 'DPOY', detail: 'Defensive Player of the Year' },
+  offensive_roty: { short: 'OROY', detail: 'Offensive Rookie of the Year' },
+  defensive_roty: { short: 'DROY', detail: 'Defensive Rookie of the Year' },
+  coach_of_year: { short: 'COY', detail: 'Coach of the Year' },
+  comeback_player: { short: 'CPOY', detail: 'Comeback Player of the Year' },
+  super_bowl_mvp: { short: 'SB MVP', detail: 'Super Bowl MVP' },
+};
+
+const AWARD_MEDIA: Record<string, AwardMedia> = {
+  mvp: { src: '/award-mvp.png', aspectClass: 'aspect-[3/2]', position: 'center center' },
+  opoy: { src: '/award-opoy-3x2.png', aspectClass: 'aspect-[3/2]', position: 'center center' },
+  dpoy: { src: '/award-dpoy.png', aspectClass: 'aspect-[3/2]', position: 'center center' },
+  offensive_roty: { src: '/award-offensive-roty.png', aspectClass: 'aspect-[3/2]', position: 'center center' },
+  defensive_roty: { src: '/award-defensive-roty.png', aspectClass: 'aspect-[3/2]', position: 'center center' },
+  coach_of_year: { src: '/award-coach.png', aspectClass: 'aspect-[3/2]', position: 'center center' },
+  comeback_player: { src: '/award-comeback-3x2.png', aspectClass: 'aspect-[3/2]', position: 'center center' },
+  super_bowl_mvp: { src: '/award-super-bowl-mvp.png', aspectClass: 'aspect-[3/2]', position: 'center center' },
 };
 
 const AWARD_ORDER = ['mvp', 'opoy', 'dpoy', 'offensive_roty', 'defensive_roty', 'coach_of_year', 'comeback_player', 'super_bowl_mvp'];
@@ -106,11 +129,13 @@ export function Awards() {
       </motion.h1>
       <p className="text-text-secondary text-base uppercase tracking-wide font-bold">Lock date: Week before NFL announcement</p>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
         {AWARD_ORDER.map((type, index) => {
           const pred = predictions.find((p) => p.award_type === type);
           const form = forms[type] ?? { player_name: '', team_id: '' };
           const isSaved = savedAwards.has(type);
+          const media = AWARD_MEDIA[type];
+          const title = AWARD_TITLES[type];
           return (
             <motion.div 
               key={type}
@@ -121,8 +146,13 @@ export function Awards() {
                 isSaved ? 'border-nfl-green shadow-glow-green' : 'border-gridiron-border'
               }`}
             >
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="font-serif font-bold text-xl text-text-primary uppercase tracking-wide">{AWARD_LABELS[type]}</h2>
+              <div className="flex items-start justify-between gap-3 mb-4">
+                <h2 className="min-w-0 font-serif font-bold text-xl text-text-primary uppercase tracking-wide leading-none">
+                  <span>{title.short}</span>
+                  <span className="ml-2 align-middle font-sans text-[10px] sm:text-xs text-text-secondary uppercase tracking-wide leading-none">
+                    ({title.detail})
+                  </span>
+                </h2>
                 <div className="flex items-center gap-3">
                   {isSaved && (
                     <motion.div 
@@ -138,6 +168,19 @@ export function Awards() {
                   ) : (
                     <span className="text-sm bg-nfl-green/20 text-nfl-green px-3 py-1 font-mono font-bold uppercase">Open</span>
                   )}
+                </div>
+              </div>
+              <div className={`relative mb-4 overflow-hidden border-2 border-gridiron-border bg-gridiron-bg ${media.aspectClass}`}>
+                <img
+                  src={media.src}
+                  alt=""
+                  className="h-full w-full object-cover"
+                  style={{ objectPosition: media.position }}
+                  loading="lazy"
+                />
+                <div className="absolute inset-0 bg-gradient-to-r from-gridiron-bg/85 via-gridiron-bg/10 to-transparent pointer-events-none" />
+                <div className="absolute bottom-3 left-3 bg-gridiron-bg/80 border-2 border-gridiron-border px-3 py-1 text-xs text-text-secondary font-mono font-bold uppercase tracking-wide">
+                  Season Award Pick
                 </div>
               </div>
               <div className="space-y-3">
@@ -157,7 +200,7 @@ export function Awards() {
                 >
                   <option value="">Select team (optional)</option>
                   {teams.map((t) => (
-                    <option key={t.id} value={t.id}>{t.city} {t.name}</option>
+                    <option key={t.id} value={t.id}>{shortenCity(t.city)} {t.name}</option>
                   ))}
                 </select>
                 <motion.button

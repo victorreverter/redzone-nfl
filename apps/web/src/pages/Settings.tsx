@@ -36,8 +36,8 @@ export function Settings() {
       await api.post('/seasons', { year });
       setMessage(`Season ${year} created!`);
       await loadSeasons();
-    } catch (e: any) {
-      setMessage(`Error: ${e.message}`);
+    } catch (e: unknown) {
+      setMessage(`Error: ${e instanceof Error ? e.message : 'Unknown error'}`);
     }
   }
 
@@ -46,8 +46,8 @@ export function Settings() {
     try {
       const res = await api.post<{ count: number }>('/teams/seed', {});
       setMessage(`Seeded ${res.count} NFL teams!`);
-    } catch (e: any) {
-      setMessage(`Error: ${e.message}`);
+    } catch (e: unknown) {
+      setMessage(`Error: ${e instanceof Error ? e.message : 'Unknown error'}`);
     } finally {
       setSeeding(false);
     }
@@ -69,8 +69,8 @@ export function Settings() {
       } else {
         setMessage(`Imported ${result.imported} of ${result.total} games from ESPN.`);
       }
-    } catch (e: any) {
-      setMessage(`Error importing: ${e.message}. Use manual entry.`);
+    } catch (e: unknown) {
+      setMessage(`Error importing: ${e instanceof Error ? e.message : 'Unknown error'}. Use manual entry.`);
     } finally {
       setImporting(false);
     }

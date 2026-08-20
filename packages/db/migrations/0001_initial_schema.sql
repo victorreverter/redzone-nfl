@@ -1,7 +1,7 @@
 CREATE TABLE IF NOT EXISTS seasons (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   year INTEGER NOT NULL UNIQUE,
-  status TEXT NOT NULL DEFAULT 'setup',
+  status TEXT NOT NULL DEFAULT 'preparing',
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );

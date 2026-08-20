@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { api } from '../lib/api';
+import { shortenCity } from '../lib/utils';
 import { Check, GripVertical } from 'lucide-react';
 
 interface DivisionPred {
@@ -230,7 +231,7 @@ export function Standings() {
                             {team.logo_url && (
                               <img src={team.logo_url} alt={team.abbreviation} className="w-8 h-8 object-contain" />
                             )}
-                            <span className="flex-1 text-base text-text-primary font-bold uppercase tracking-wide">{team.city} {team.name}</span>
+                            <span className="flex-1 text-base text-text-primary font-bold uppercase tracking-wide">{shortenCity(team.city)} {team.name}</span>
                           </motion.div>
                         );
                       })}

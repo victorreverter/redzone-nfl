@@ -16,12 +16,13 @@ export function Layout({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="flex flex-col min-h-dvh">
-      <header className="bg-gridiron-surface border-b-2 border-gridiron-border sticky top-0 z-50 neumorphic">
+    <div className="relative flex flex-col min-h-dvh overflow-hidden">
+      <div className="app-backdrop" />
+      <header className="bg-gridiron-surface/90 backdrop-blur-xl border-b-2 border-gridiron-border sticky top-0 z-50 neumorphic">
         <div className="flex items-center justify-between px-4 h-16">
           <NavLink to="/" className="flex items-center gap-3">
-            <img src="/nfl-shield.svg" alt="NFL" className="w-12 h-12" />
-            <span className="font-serif font-bold text-2xl text-text-primary uppercase tracking-wider">Redzone NFL</span>
+            <img src="/nfl-logo-official.png" alt="NFL" className="w-12 h-12" />
+            <span className="font-serif font-bold text-2xl text-text-primary uppercase tracking-wider leading-none">Redzone NFL</span>
           </NavLink>
           <button
             onClick={() => setOpen(!open)}
@@ -35,7 +36,7 @@ export function Layout({ children }: { children: ReactNode }) {
       <div className="flex flex-1">
         <nav
           className={`
-            fixed inset-y-0 left-0 z-40 w-64 bg-gridiron-surface border-r-2 border-gridiron-border 
+            fixed inset-y-0 left-0 z-40 w-64 bg-gridiron-surface/95 backdrop-blur-xl border-r-2 border-gridiron-border 
             transform transition-transform duration-200 ease-in-out
             lg:translate-x-0 lg:static lg:w-64 lg:flex-shrink-0
             ${open ? 'translate-x-0' : '-translate-x-full'}
@@ -71,7 +72,7 @@ export function Layout({ children }: { children: ReactNode }) {
           />
         )}
 
-        <main className="flex-1 p-4 md:p-6 lg:p-8 overflow-auto">
+        <main className="relative flex-1 p-4 md:p-6 lg:p-8 overflow-auto">
           {children}
         </main>
       </div>

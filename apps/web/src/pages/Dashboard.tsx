@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
+import { Link } from 'react-router-dom';
 import { api } from '../lib/api';
-import { Trophy, TrendingUp, Target, Award } from 'lucide-react';
+import { Trophy, TrendingUp, Target, Award, CalendarDays } from 'lucide-react';
 
 interface Season {
   id: number;
@@ -60,13 +61,24 @@ export function Dashboard() {
 
   return (
     <div className="space-y-6">
-      <motion.h1 
+      <motion.section
         initial={{ opacity: 0, x: -20 }}
         animate={{ opacity: 1, x: 0 }}
-        className="text-4xl md:text-5xl lg:text-6xl font-serif font-bold gradient-text uppercase tracking-tight"
+        className="field-hero relative overflow-hidden border-2 border-gridiron-border p-6 md:p-8 lg:p-10 neumorphic"
       >
-        {currentSeason.year} Season Dashboard
-      </motion.h1>
+        <div className="relative max-w-3xl">
+          <div className="mb-4 inline-flex items-center gap-2 bg-gridiron-bg/75 border-2 border-gridiron-border px-3 py-2 text-sm text-text-secondary font-bold uppercase tracking-wide">
+            <CalendarDays size={16} className="text-nfl-blue" />
+            {currentSeason.status} season
+          </div>
+          <h1 className="text-4xl md:text-5xl lg:text-6xl font-serif font-bold text-text-primary uppercase tracking-tight">
+            {currentSeason.year} Season Dashboard
+          </h1>
+          <p className="mt-4 max-w-2xl text-base md:text-lg text-text-secondary font-bold uppercase tracking-wide">
+            Track weekly picks, division calls, awards, records, and playoff outcomes from one board.
+          </p>
+        </div>
+      </motion.section>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <motion.div
@@ -149,13 +161,16 @@ function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string
 
 function QuickLink({ to, label }: { to: string; label: string }) {
   return (
-    <motion.a
+    <motion.div
       whileHover={{ scale: 1.05 }}
       whileTap={{ scale: 0.95 }}
-      href={to}
-      className="bg-gridiron-surface-hover hover:bg-gridiron-border p-4 text-center text-base font-bold text-text-primary uppercase tracking-wide transition-all border-l-4 border-transparent hover:border-nfl-blue"
     >
-      {label}
-    </motion.a>
+      <Link
+        to={to}
+        className="block bg-gridiron-surface-hover hover:bg-gridiron-border p-4 text-center text-base font-bold text-text-primary uppercase tracking-wide transition-all border-l-4 border-transparent hover:border-nfl-blue"
+      >
+        {label}
+      </Link>
+    </motion.div>
   );
 }
