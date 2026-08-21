@@ -24,21 +24,23 @@ router.get('/standings/:seasonId', async (c) => {
   const seasonId = c.req.param('seasonId');
 
   // Get all teams with records
-  const teamsWithRecords = await DB.prepare(`
+  const teamsResult = await DB.prepare(`
     SELECT t.id, t.name, t.abbreviation, t.logo_url, t.conference, t.division,
            COALESCE(pr.predicted_wins, 0) as wins,
            COALESCE(pr.predicted_losses, 0) as losses
     FROM teams t
     LEFT JOIN predictions_record pr ON t.id = pr.team_id AND pr.season_id = ?
     ORDER BY t.conference, t.division, pr.predicted_wins DESC, pr.predicted_losses ASC
-  `).bind(seasonId).all() as any[];
+  `).bind(seasonId).all();
+  const teamsWithRecords = teamsResult.results || [];
 
   // Get division predictions for drag order of 0-0 teams
-  const divPreds = await DB.prepare(`
+  const divPredResult = await DB.prepare(`
     SELECT pd.team_id, pd.predicted_position
     FROM predictions_division pd
     WHERE pd.season_id = ?
-  `).bind(seasonId).all() as any[];
+  `).bind(seasonId).all();
+  const divPreds = divPredResult.results || [];
   const divPredMap = new Map<number, number>();
   for (const p of divPreds) divPredMap.set(p.team_id, p.predicted_position);
 
