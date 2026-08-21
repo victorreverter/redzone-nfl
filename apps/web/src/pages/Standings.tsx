@@ -291,46 +291,39 @@ export function Standings() {
                             {teamDisplayName(team.city, team.name)}
                           </span>
 
-                          {hasRecord ? (
-                            <div className="flex items-center gap-1">
-                              {teamData.position === 1 && <Trophy size={12} className="text-nfl-yellow" />}
-                              <span className="text-xs md:text-sm font-mono font-bold text-text-primary">
-                                {teamData.wins}-{teamData.losses}
-                              </span>
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-1">
-                              <input
-                                type="number"
-                                min="0"
-                                max={MAX_GAMES}
-                                placeholder="W"
-                                value={teamData.wins || ''}
-                                onChange={(e) => {
-                                  const val = e.target.value === '' ? '' : Math.min(MAX_GAMES, Math.max(0, parseInt(e.target.value) || 0));
-                                  const newDivTeams = [...divTeams];
-                                  const idx = newDivTeams.findIndex(t => t.team_id === teamId);
-                                  if (idx !== -1) {
-                                    const maxLosses = MAX_GAMES - (val === '' ? 0 : Number(val));
-                                    const currentLosses = newDivTeams[idx].losses;
-                                    newDivTeams[idx] = {
-                                      ...newDivTeams[idx],
-                                      wins: val === '' ? 0 : Number(val),
-                                      losses: currentLosses > maxLosses ? maxLosses : currentLosses,
-                                    };
-                                    setData({ ...data, divisions: { ...data.divisions, [key]: newDivTeams } });
-                                  }
-                                }}
-                                className="w-10 bg-gridiron-bg border-2 border-gridiron-border rounded px-1 py-0.5 text-xs text-center text-text-primary font-mono"
-                              />
-                              <span className="text-text-muted text-xs">-</span>
-                              <input
-                                type="number"
-                                min="0"
-                                max={MAX_GAMES}
-                                placeholder="L"
-                                value={teamData.losses || ''}
-                                onChange={(e) => {
+                          <div className="flex items-center gap-1">
+                            {teamData.position === 1 && <Trophy size={12} className="text-nfl-yellow" />}
+                            <input
+                              type="number"
+                              min="0"
+                              max={MAX_GAMES}
+                              placeholder="W"
+                              value={teamData.wins || ''}
+                              onChange={(e) => {
+                                const val = e.target.value === '' ? '' : Math.min(MAX_GAMES, Math.max(0, parseInt(e.target.value) || 0));
+                                const newDivTeams = [...divTeams];
+                                const idx = newDivTeams.findIndex(t => t.team_id === teamId);
+                                if (idx !== -1) {
+                                  const maxLosses = MAX_GAMES - (val === '' ? 0 : Number(val));
+                                  const currentLosses = newDivTeams[idx].losses;
+                                  newDivTeams[idx] = {
+                                    ...newDivTeams[idx],
+                                    wins: val === '' ? 0 : Number(val),
+                                    losses: currentLosses > maxLosses ? maxLosses : currentLosses,
+                                  };
+                                  setData({ ...data, divisions: { ...data.divisions, [key]: newDivTeams } });
+                                }
+                              }}
+                              className="w-10 bg-gridiron-bg border-2 border-gridiron-border rounded px-1 py-0.5 text-xs text-center text-text-primary font-mono"
+                            />
+                            <span className="text-text-muted text-xs">-</span>
+                            <input
+                              type="number"
+                              min="0"
+                              max={MAX_GAMES}
+                              placeholder="L"
+                              value={teamData.losses || ''}
+                              onChange={(e) => {
                                   const val = e.target.value === '' ? '' : Math.min(MAX_GAMES, Math.max(0, parseInt(e.target.value) || 0));
                                   const newDivTeams = [...divTeams];
                                   const idx = newDivTeams.findIndex(t => t.team_id === teamId);
@@ -348,7 +341,6 @@ export function Standings() {
                                 className="w-10 bg-gridiron-bg border-2 border-gridiron-border rounded px-1 py-0.5 text-xs text-center text-text-primary font-mono"
                               />
                             </div>
-                          )}
                         </motion.div>
                       );
                     })}
