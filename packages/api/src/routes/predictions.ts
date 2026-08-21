@@ -18,6 +18,118 @@ router.get('/division/:seasonId', async (c) => {
   return c.json(preds.results);
 });
 
+// Combined standings: records + division positions + playoff seeds
+router.get('/standings/:seasonId', async (c) => {
+  const { DB } = c.env;
+  const seasonId = c.req.param('seasonId');
+
+  // Get all teams with records
+  const teamsWithRecords = await DB.prepare(`
+    SELECT t.id, t.name, t.abbreviation, t.logo_url, t.conference, t.division,
+           COALESCE(pr.predicted_wins, 0) as wins,
+           COALESCE(pr.predicted_losses, 0) as losses
+    FROM teams t
+    LEFT JOIN predictions_record pr ON t.id = pr.team_id AND pr.season_id = ?
+    ORDER BY t.conference, t.division, pr.predicted_wins DESC, pr.predicted_losses ASC
+  `).bind(seasonId).all() as any[];
+
+  // Get division predictions for drag order of 0-0 teams
+  const divPreds = await DB.prepare(`
+    SELECT pd.team_id, pd.predicted_position
+    FROM predictions_division pd
+    WHERE pd.season_id = ?
+  `).bind(seasonId).all() as any[];
+  const divPredMap = new Map<number, number>();
+  for (const p of divPreds) divPredMap.set(p.team_id, p.predicted_position);
+
+  // Build divisions
+  const conferences = ['AFC', 'NFC'];
+  const divNames = ['East', 'North', 'South', 'West'];
+  const divData: Record<string, any[]> = {};
+
+  for (const conf of conferences) {
+    for (const div of divNames) {
+      const key = `${conf}-${div}`;
+      const divTeams = teamsWithRecords.filter(t => t.conference === conf && t.division === div);
+      
+      // Sort: teams with records first (by wins desc, losses asc), then 0-0 teams by drag order
+      divTeams.sort((a, b) => {
+        const aHasRecord = a.wins > 0 || a.losses > 0;
+        const bHasRecord = b.wins > 0 || b.losses > 0;
+        
+        if (aHasRecord && bHasRecord) {
+          if (a.wins !== b.wins) return b.wins - a.wins;
+          return a.losses - b.losses;
+        }
+        if (aHasRecord && !bHasRecord) return -1;
+        if (!aHasRecord && bHasRecord) return 1;
+        
+        // Both 0-0: use drag order
+        const aPos = divPredMap.get(a.id) ?? 99;
+        const bPos = divPredMap.get(b.id) ?? 99;
+        return aPos - bPos;
+      });
+
+      divData[key] = divTeams.map((t, i) => ({
+        team_id: t.id,
+        team_name: t.name,
+        team_abbr: t.abbreviation,
+        logo_url: t.logo_url,
+        wins: t.wins,
+        losses: t.losses,
+        position: i + 1,
+      }));
+    }
+  }
+
+  // Calculate seeds per conference
+  const seeds: Record<string, any[]> = {};
+  const wildcardCandidates: any[] = [];
+
+  for (const conf of conferences) {
+    const divWinners: any[] = [];
+    const nonWinners: any[] = [];
+
+    for (const div of divNames) {
+      const key = `${conf}-${div}`;
+      const divTeams = divData[key] || [];
+      if (divTeams.length > 0) {
+        divWinners.push({ ...divTeams[0], is_div_winner: true });
+        nonWinners.push(...divTeams.slice(1));
+      }
+    }
+
+    // Sort div winners by record
+    divWinners.sort((a, b) => {
+      if (a.wins !== b.wins) return b.wins - a.wins;
+      return a.losses - b.losses;
+    });
+
+    // Sort non-winners by record
+    nonWinners.sort((a, b) => {
+      if (a.wins !== b.wins) return b.wins - a.wins;
+      return a.losses - b.losses;
+    });
+
+    seeds[conf] = [
+      ...divWinners.map((t, i) => ({ seed: i + 1, team_id: t.team_id, team_name: t.team_name, team_abbr: t.team_abbr, record: `${t.wins}-${t.losses}`, is_div_winner: true })),
+      ...Array.from({ length: 3 }, (_, i) => {
+        const t = nonWinners[i];
+        return t ? { seed: i + 5, team_id: t.team_id, team_name: t.team_name, team_abbr: t.team_abbr, record: `${t.wins}-${t.losses}`, is_div_winner: false } : { seed: i + 5, team_id: null, team_name: null, team_abbr: null, record: null, is_div_winner: false };
+      }),
+    ];
+
+    // Collect wildcard candidates (all non-winners with records)
+    nonWinners.forEach(t => {
+      if (t.wins > 0 || t.losses > 0) {
+        wildcardCandidates.push({ team_id: t.team_id, team_name: t.team_name, record: `${t.wins}-${t.losses}`, conference: conf });
+      }
+    });
+  }
+
+  return c.json({ divisions: divData, seeds, wildcard_candidates: wildcardCandidates });
+});
+
 router.post('/division', async (c) => {
   const { DB } = c.env;
   const { season_id, predictions } = await c.req.json();
@@ -28,6 +140,38 @@ router.post('/division', async (c) => {
        ON CONFLICT(season_id, team_id) DO UPDATE SET predicted_position = ?, updated_at = datetime('now')`
     ).bind(season_id, p.team_id, p.position, p.position).run();
   }
+  return c.json({ ok: true });
+});
+
+// Combined save: records + division positions
+router.post('/standings', async (c) => {
+  const { DB } = c.env;
+  const { season_id, records, divisions } = await c.req.json();
+
+  // Save records
+  if (records && Array.isArray(records)) {
+    for (const r of records) {
+      await DB.prepare(
+        `INSERT INTO predictions_record (season_id, team_id, predicted_wins, predicted_losses)
+         VALUES (?, ?, ?, ?)
+         ON CONFLICT(season_id, team_id) DO UPDATE SET predicted_wins = ?, predicted_losses = ?, updated_at = datetime('now')`
+      ).bind(season_id, r.team_id, r.wins, r.losses, r.wins, r.losses).run();
+    }
+  }
+
+  // Save division positions (for 0-0 teams drag order)
+  if (divisions && typeof divisions === 'object') {
+    for (const [, teamIds] of Object.entries(divisions) as [string, number[]][]) {
+      teamIds.forEach(async (teamId, index) => {
+        await DB.prepare(
+          `INSERT INTO predictions_division (season_id, team_id, predicted_position) 
+           VALUES (?, ?, ?) 
+           ON CONFLICT(season_id, team_id) DO UPDATE SET predicted_position = ?, updated_at = datetime('now')`
+        ).bind(season_id, teamId, index + 1, index + 1).run();
+      });
+    }
+  }
+
   return c.json({ ok: true });
 });
 

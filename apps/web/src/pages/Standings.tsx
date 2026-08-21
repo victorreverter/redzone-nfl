@@ -2,17 +2,25 @@ import { useEffect, useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { api } from '../lib/api';
 import { teamDisplayName } from '../lib/utils';
-import { Check, GripVertical } from 'lucide-react';
+import { GripVertical, Trophy } from 'lucide-react';
 
-interface DivisionPred {
-  id: number;
+interface TeamRecord {
   team_id: number;
-  predicted_position: number;
   team_name: string;
   team_abbr: string;
-  team_logo: string | null;
-  conference: string;
-  division: string;
+  logo_url: string | null;
+  wins: number;
+  losses: number;
+  position: number;
+}
+
+interface Seed {
+  seed: number;
+  team_id: number | null;
+  team_name: string | null;
+  team_abbr: string | null;
+  record: string | null;
+  is_div_winner: boolean;
 }
 
 interface Team {
@@ -25,15 +33,30 @@ interface Team {
   division: string;
 }
 
+interface StandingsData {
+  divisions: Record<string, TeamRecord[]>;
+  seeds: Record<string, Seed[]>;
+  wildcard_candidates: Array<{ team_id: number; team_name: string; record: string; conference: string }>;
+}
+
+const MAX_GAMES = 17;
+const DIVISIONS = ['East', 'North', 'South', 'West'];
+const CONFERENCES = ['AFC', 'NFC'] as const;
+
 export function Standings() {
+  const [data, setData] = useState<StandingsData | null>(null);
   const [teams, setTeams] = useState<Team[]>([]);
   const [seasonId, setSeasonId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
-  const [divisionOrders, setDivisionOrders] = useState<Record<string, number[]>>({});
   const [saving, setSaving] = useState(false);
-  const [savedDivisions, setSavedDivisions] = useState<Set<string>>(new Set());
+  const [saved, setSaved] = useState(false);
+
+  // Drag state
   const dragItem = useRef<{ divKey: string; index: number } | null>(null);
   const dragOverItem = useRef<{ divKey: string; index: number } | null>(null);
+
+  // Local division orders for 0-0 teams (drag order)
+  const [divisionOrders, setDivisionOrders] = useState<Record<string, number[]>>({});
 
   useEffect(() => {
     async function load() {
@@ -41,48 +64,20 @@ export function Standings() {
         const seasons = await api.get<{ id: number }[]>('/seasons');
         if (seasons.length === 0) { setLoading(false); return; }
         setSeasonId(seasons[0].id);
-        const [teamsData, predsData] = await Promise.all([
+
+        const [standingsData, teamsData] = await Promise.all([
+          api.get<StandingsData>(`/predictions/standings/${seasons[0].id}`),
           api.get<Team[]>('/teams'),
-          api.get<DivisionPred[]>(`/predictions/division/${seasons[0].id}`),
         ]);
+        setData(standingsData);
         setTeams(teamsData);
 
-        // Build initial division orders from predictions or default
+        // Initialize division orders from loaded data
         const orders: Record<string, number[]> = {};
-        const conferences = ['AFC', 'NFC'];
-        const divisions = ['East', 'North', 'South', 'West'];
-        
-        for (const conf of conferences) {
-          for (const div of divisions) {
-            const key = `${conf}-${div}`;
-            const divTeams = teamsData.filter(t => t.conference === conf && t.division === div);
-            const divPreds = predsData.filter(p => divTeams.some(t => t.id === p.team_id));
-            
-            if (divPreds.length === 4) {
-              // Use saved order
-              const sorted = [...divPreds].sort((a, b) => a.predicted_position - b.predicted_position);
-              orders[key] = sorted.map(p => p.team_id);
-            } else {
-              // Default order
-              orders[key] = divTeams.map(t => t.id);
-            }
-          }
+        for (const [key, divTeams] of Object.entries(standingsData.divisions)) {
+          orders[key] = divTeams.map(t => t.team_id);
         }
         setDivisionOrders(orders);
-        
-        // Track which divisions have saved predictions
-        const saved = new Set<string>();
-        for (const conf of conferences) {
-          for (const div of divisions) {
-            const key = `${conf}-${div}`;
-            const divTeams = teamsData.filter(t => t.conference === conf && t.division === div);
-            const divPreds = predsData.filter(p => divTeams.some(t => t.id === p.team_id));
-            if (divPreds.length === 4) {
-              saved.add(key);
-            }
-          }
-        }
-        setSavedDivisions(saved);
       } catch {
         // not ready
       } finally {
@@ -108,9 +103,7 @@ export function Standings() {
     const dragItemIndex = dragItem.current.index;
     const dragOverItemIndex = dragOverItem.current.index;
 
-    // Remove dragged item
     const [removed] = list.splice(dragItemIndex, 1);
-    // Insert at new position
     list.splice(dragOverItemIndex, 0, removed);
 
     setDivisionOrders({ ...divisionOrders, [divKey]: list });
@@ -118,7 +111,7 @@ export function Standings() {
     dragOverItem.current = null;
   }
 
-  // Touch drag support for mobile
+  // Touch drag support
   const touchStartY = useRef<number>(0);
   const touchCurrentItem = useRef<{ divKey: string; index: number } | null>(null);
 
@@ -131,7 +124,6 @@ export function Standings() {
     if (!touchCurrentItem.current || touchCurrentItem.current.divKey !== divKey) return;
     const deltaY = Math.abs(e.touches[0].clientY - touchStartY.current);
     if (deltaY > 30) {
-      // User has dragged enough to trigger a reorder
       const fromIndex = touchCurrentItem.current.index;
       const toIndex = index;
       if (fromIndex !== toIndex) {
@@ -150,48 +142,74 @@ export function Standings() {
   }
 
   async function handleSaveAll() {
-    if (!seasonId) return;
+    if (!seasonId || !data) return;
     setSaving(true);
 
-    const allPredictions: { team_id: number; position: number }[] = [];
-    
-    for (const [, teamIds] of Object.entries(divisionOrders)) {
-      teamIds.forEach((teamId, index) => {
-        allPredictions.push({ team_id: teamId, position: index + 1 });
-      });
+    // Collect records from current division data
+    const records: { team_id: number; wins: number; losses: number }[] = [];
+    for (const [, divTeams] of Object.entries(data.divisions)) {
+      for (const t of divTeams) {
+        if (t.wins > 0 || t.losses > 0) {
+          records.push({ team_id: t.team_id, wins: t.wins, losses: t.losses });
+        }
+      }
     }
 
-    await api.post('/predictions/division', {
+    // Collect division orders for 0-0 teams
+    const divOrders: Record<string, number[]> = {};
+    for (const [key, teamIds] of Object.entries(divisionOrders)) {
+      const divTeams = data.divisions[key] || [];
+      const zeroTeams = divTeams.filter(t => t.wins === 0 && t.losses === 0);
+      if (zeroTeams.length > 0) {
+        // Use drag order for 0-0 teams
+        const zeroIds = teamIds.filter(id => zeroTeams.some(t => t.team_id === id));
+        divOrders[key] = zeroIds;
+      }
+    }
+
+    await api.post('/predictions/standings', {
       season_id: seasonId,
-      predictions: allPredictions,
+      records,
+      divisions: divOrders,
     });
 
-    setSaving(false);
-    
-    // Mark all divisions as saved
-    const allSaved = new Set<string>();
-    for (const key of Object.keys(divisionOrders)) {
-      allSaved.add(key);
+    // Reload data
+    const standingsData = await api.get<StandingsData>(`/predictions/standings/${seasonId}`);
+    setData(standingsData);
+
+    const orders: Record<string, number[]> = {};
+    for (const [key, divTeams] of Object.entries(standingsData.divisions)) {
+      orders[key] = divTeams.map(t => t.team_id);
     }
-    setSavedDivisions(allSaved);
+    setDivisionOrders(orders);
+
+    setSaving(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
   }
 
   if (loading) {
     return <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-nfl-blue" /></div>;
   }
 
-  const conferences = ['AFC', 'NFC'];
-  const divisions = ['East', 'North', 'South', 'West'];
+  if (!data || teams.length === 0) {
+    return (
+      <div className="bg-gridiron-surface p-8 border-2 border-gridiron-border text-center text-text-secondary neumorphic">
+        Seed teams first in Settings
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
-        <motion.h1 
+        <motion.h1
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
-          className="text-4xl md:text-5xl lg:text-6xl font-serif font-bold gradient-text uppercase tracking-tight"
+          className="text-3xl md:text-5xl lg:text-6xl font-oswald font-bold text-nfl-red uppercase tracking-tight"
         >
-          Division Predictions
+          Standings & Records
         </motion.h1>
         <motion.button
           whileHover={{ scale: 1.05 }}
@@ -202,80 +220,231 @@ export function Standings() {
             saving ? 'bg-text-muted' : 'bg-gradient-to-r from-nfl-red to-nfl-blue hover:shadow-glow'
           }`}
         >
-          {saving ? 'Saving...' : 'Save All'}
+          {saving ? 'Saving...' : saved ? 'Saved!' : 'Save All'}
         </motion.button>
       </div>
 
-      {teams.length === 0 ? (
-        <div className="bg-gridiron-surface p-8 border-2 border-gridiron-border text-center text-text-secondary neumorphic">
-          Seed teams first in Settings
-        </div>
-      ) : (
-        conferences.map((conf) => (
-          <motion.div 
-            key={conf}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4 }}
-          >
-            <h2 className="text-4xl md:text-5xl font-serif font-bold text-text-primary mb-5 pb-3 border-b-4 border-nfl-blue uppercase tracking-tight">{conf}</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {divisions.map((div) => {
-                const key = `${conf}-${div}`;
-                const teamIds = divisionOrders[key] || [];
-                const divTeams = teams.filter(t => t.conference === conf && t.division === div);
-                const isSaved = savedDivisions.has(key);
+      {/* Conferences */}
+      {CONFERENCES.map((conf) => (
+        <motion.div
+          key={conf}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+        >
+          <h2 className="text-3xl md:text-4xl font-oswald font-bold text-text-primary mb-4 pb-2 border-b-4 border-nfl-blue uppercase tracking-wide">{conf}</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {DIVISIONS.map((div) => {
+              const key = `${conf}-${div}`;
+              const teamIds = divisionOrders[key] || [];
+              const divTeams = data.divisions[key] || [];
 
-                return (
-                  <div key={div} className={`bg-gridiron-surface p-5 border-2 transition-all neumorphic ${
-                    isSaved ? 'border-nfl-green shadow-glow-green' : 'border-gridiron-border'
-                  }`}>
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="font-bold text-base text-text-secondary uppercase tracking-wide">{conf} {div}</h3>
-                      {isSaved && (
-                        <motion.div 
-                          initial={{ scale: 0 }}
-                          animate={{ scale: 1 }}
-                          className="bg-nfl-green p-1.5"
+              return (
+                <div key={div} className="bg-gridiron-surface p-4 border-2 border-gridiron-border neumorphic">
+                  <h3 className="font-oswald font-bold text-sm text-text-secondary uppercase tracking-wide mb-3">{conf} {div}</h3>
+                  <div className="space-y-2">
+                    {teamIds.map((teamId, index) => {
+                      const teamData = divTeams.find(t => t.team_id === teamId);
+                      const team = teams.find(t => t.id === teamId);
+                      if (!teamData || !team) return null;
+
+                      const hasRecord = teamData.wins > 0 || teamData.losses > 0;
+                      const isDraggable = !hasRecord;
+
+                      return (
+                        <motion.div
+                          key={teamId}
+                          draggable={isDraggable}
+                          onDragStart={() => isDraggable && handleDragStart(key, index)}
+                          onDragEnter={() => isDraggable && handleDragEnter(key, index)}
+                          onDragEnd={() => isDraggable && handleDragEnd(key)}
+                          onDragOver={(e) => e.preventDefault()}
+                          onTouchStart={(e) => isDraggable && handleTouchStart(key, index, e)}
+                          onTouchMove={(e) => isDraggable && handleTouchMove(key, index, e)}
+                          onTouchEnd={isDraggable ? handleTouchEnd : undefined}
+                          whileHover={isDraggable ? { scale: 1.02, x: 3 } : undefined}
+                          className={`flex items-center gap-2 p-2.5 transition-all ${
+                            isDraggable
+                              ? 'bg-gridiron-surface-hover cursor-grab active:cursor-grabbing touch-none border-l-4 border-transparent hover:border-nfl-blue'
+                              : teamData.position === 1
+                                ? 'bg-gridiron-surface-hover border-l-4 border-nfl-yellow'
+                                : 'bg-gridiron-surface-hover border-l-4 border-transparent'
+                          }`}
                         >
-                          <Check size={14} className="text-white" />
+                          {isDraggable ? (
+                            <GripVertical size={16} className="text-text-muted flex-shrink-0" />
+                          ) : (
+                            <span className={`w-4 text-center text-xs font-mono font-bold ${
+                              teamData.position === 1 ? 'text-nfl-yellow' : 'text-text-muted'
+                            }`}>{teamData.position}</span>
+                          )}
+
+                          {team.logo_url ? (
+                            <img src={team.logo_url} alt={teamData.team_abbr} className="w-7 h-7 flex-shrink-0 object-contain" />
+                          ) : (
+                            <div className="w-7 h-7 flex-shrink-0 bg-gridiron-border flex items-center justify-center text-[10px] font-mono text-text-muted">
+                              {teamData.team_abbr}
+                            </div>
+                          )}
+
+                          <span className="flex-1 text-sm md:text-base font-bold text-text-primary uppercase tracking-wide truncate">
+                            {teamDisplayName(team.city, team.name)}
+                          </span>
+
+                          {hasRecord ? (
+                            <div className="flex items-center gap-1">
+                              {teamData.position === 1 && <Trophy size={12} className="text-nfl-yellow" />}
+                              <span className="text-xs md:text-sm font-mono font-bold text-text-primary">
+                                {teamData.wins}-{teamData.losses}
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1">
+                              <input
+                                type="number"
+                                min="0"
+                                max={MAX_GAMES}
+                                placeholder="W"
+                                value={teamData.wins || ''}
+                                onChange={(e) => {
+                                  const val = e.target.value === '' ? '' : Math.min(MAX_GAMES, Math.max(0, parseInt(e.target.value) || 0));
+                                  const newDivTeams = [...divTeams];
+                                  const idx = newDivTeams.findIndex(t => t.team_id === teamId);
+                                  if (idx !== -1) {
+                                    const maxLosses = MAX_GAMES - (val === '' ? 0 : Number(val));
+                                    const currentLosses = newDivTeams[idx].losses;
+                                    newDivTeams[idx] = {
+                                      ...newDivTeams[idx],
+                                      wins: val === '' ? 0 : Number(val),
+                                      losses: currentLosses > maxLosses ? maxLosses : currentLosses,
+                                    };
+                                    setData({ ...data, divisions: { ...data.divisions, [key]: newDivTeams } });
+                                  }
+                                }}
+                                className="w-10 bg-gridiron-bg border-2 border-gridiron-border rounded px-1 py-0.5 text-xs text-center text-text-primary font-mono"
+                              />
+                              <span className="text-text-muted text-xs">-</span>
+                              <input
+                                type="number"
+                                min="0"
+                                max={MAX_GAMES}
+                                placeholder="L"
+                                value={teamData.losses || ''}
+                                onChange={(e) => {
+                                  const val = e.target.value === '' ? '' : Math.min(MAX_GAMES, Math.max(0, parseInt(e.target.value) || 0));
+                                  const newDivTeams = [...divTeams];
+                                  const idx = newDivTeams.findIndex(t => t.team_id === teamId);
+                                  if (idx !== -1) {
+                                    const maxWins = MAX_GAMES - (val === '' ? 0 : Number(val));
+                                    const currentWins = newDivTeams[idx].wins;
+                                    newDivTeams[idx] = {
+                                      ...newDivTeams[idx],
+                                      losses: val === '' ? 0 : Number(val),
+                                      wins: currentWins > maxWins ? maxWins : currentWins,
+                                    };
+                                    setData({ ...data, divisions: { ...data.divisions, [key]: newDivTeams } });
+                                  }
+                                }}
+                                className="w-10 bg-gridiron-bg border-2 border-gridiron-border rounded px-1 py-0.5 text-xs text-center text-text-primary font-mono"
+                              />
+                            </div>
+                          )}
                         </motion.div>
-                      )}
-                    </div>
-                    <div className="space-y-2">
-                      {teamIds.map((teamId, index) => {
-                        const team = divTeams.find(t => t.id === teamId);
-                        if (!team) return null;
-                        return (
-                          <motion.div
-                            key={teamId}
-                            draggable
-                            onDragStart={() => handleDragStart(key, index)}
-                            onDragEnter={() => handleDragEnter(key, index)}
-                            onDragEnd={() => handleDragEnd(key)}
-                            onDragOver={(e) => e.preventDefault()}
-                            onTouchStart={(e) => handleTouchStart(key, index, e)}
-                            onTouchMove={(e) => handleTouchMove(key, index, e)}
-                            onTouchEnd={handleTouchEnd}
-                            whileHover={{ scale: 1.02, x: 5 }}
-                            className="flex items-center gap-3 bg-gridiron-surface-hover p-3 cursor-grab active:cursor-grabbing hover:bg-gridiron-border transition-all border-l-4 border-transparent hover:border-nfl-blue touch-none"
-                          >
-                            <GripVertical size={18} className="text-text-muted" />
-                            <span className="text-base text-text-muted w-6 font-mono font-bold">{index + 1}</span>
-                            {team.logo_url && (
-                              <img src={team.logo_url} alt={team.abbreviation} className="w-8 h-8 object-contain" />
-                            )}
-                            <span className="flex-1 text-lg md:text-xl font-bold text-text-primary uppercase tracking-wide truncate">{teamDisplayName(team.city, team.name)}</span>
-                          </motion.div>
-                        );
-                      })}
-                    </div>
+                      );
+                    })}
                   </div>
-                );
-              })}
-            </div>
-          </motion.div>
-        ))
+                </div>
+              );
+            })}
+          </div>
+        </motion.div>
+      ))}
+
+      {/* Post Season Mockup */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.2 }}
+      >
+        <h2 className="text-3xl md:text-4xl font-oswald font-bold text-text-primary mb-4 pb-2 border-b-4 border-nfl-red uppercase tracking-wide">Post Season Mockup</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {CONFERENCES.map((conf) => {
+            const confSeeds = data.seeds[conf] || [];
+            return (
+              <div key={conf} className="bg-gridiron-surface p-4 border-2 border-gridiron-border neumorphic">
+                <h3 className="font-oswald font-bold text-lg text-text-primary uppercase tracking-wide mb-3">{conf} Seeds</h3>
+                <div className="space-y-2">
+                  {confSeeds.map((seed) => (
+                    <SeedRow
+                      key={seed.seed}
+                      seed={seed}
+                      wildcardCandidates={data.wildcard_candidates.filter(c => c.conference === conf)}
+                      usedTeamIds={confSeeds.filter(s => s.seed !== seed.seed && s.team_id !== null).map(s => s.team_id as number)}
+                      onSelect={(teamId) => {
+                        setData({
+                          ...data,
+                          seeds: {
+                            ...data.seeds,
+                            [conf]: data.seeds[conf].map(s =>
+                              s.seed === seed.seed
+                                ? { ...s, team_id: teamId, team_name: teams.find(t => t.id === teamId)?.name || null, team_abbr: teams.find(t => t.id === teamId)?.abbreviation || null, record: '0-0' }
+                                : s
+                            ),
+                          },
+                        });
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
+function SeedRow({ seed, wildcardCandidates, usedTeamIds, onSelect }: {
+  seed: Seed;
+  wildcardCandidates: Array<{ team_id: number; team_name: string; record: string; conference: string }>;
+  usedTeamIds: number[];
+  onSelect: (teamId: number) => void;
+}) {
+
+  return (
+    <div className={`flex items-center gap-3 p-2.5 rounded transition-all ${
+      seed.is_div_winner ? 'bg-nfl-yellow/10 border border-nfl-yellow/30' : 'bg-gridiron-surface-hover border border-transparent'
+    }`}>
+      <span className={`w-6 text-center text-sm font-mono font-bold ${
+        seed.is_div_winner ? 'text-nfl-yellow' : 'text-text-muted'
+      }`}>
+        {seed.seed <= 3 ? ['🥇', '🥈', '🥉'][seed.seed - 1] : seed.seed}.
+      </span>
+      <span className="flex-1 text-sm font-bold text-text-primary uppercase tracking-wide truncate">
+        {seed.team_name || 'Select team'}
+      </span>
+      {seed.record && (
+        <span className="text-xs font-mono font-bold text-text-secondary">
+          {seed.record}
+        </span>
+      )}
+      {!seed.is_div_winner && !seed.team_id && (
+        <select
+          onChange={(e) => {
+            if (e.target.value) onSelect(Number(e.target.value));
+          }}
+          className="bg-gridiron-bg border-2 border-gridiron-border px-2 py-1 text-xs text-text-primary font-bold"
+        >
+          <option value="">Select</option>
+          {wildcardCandidates
+            .filter(c => !usedTeamIds.includes(c.team_id))
+            .map(c => (
+              <option key={c.team_id} value={c.team_id}>
+                {c.team_name} ({c.record})
+              </option>
+            ))}
+        </select>
       )}
     </div>
   );

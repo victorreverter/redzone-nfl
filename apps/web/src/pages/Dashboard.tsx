@@ -150,11 +150,10 @@ export function Dashboard() {
         className="bg-gridiron-surface p-6 border-2 border-gridiron-border neumorphic"
       >
         <h2 className="text-2xl font-oswald font-bold mb-5 text-text-primary uppercase tracking-wide">Quick Actions</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           <QuickLink to="/schedule" label="Make Predictions" />
-          <QuickLink to="/standings" label="View Standings" />
+          <QuickLink to="/standings" label="Standings & Records" />
           <QuickLink to="/awards" label="Predict Awards" />
-          <QuickLink to="/records" label="Team Records" />
         </div>
       </motion.div>
 

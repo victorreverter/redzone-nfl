@@ -1,6 +1,6 @@
 import { ReactNode, useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { Menu, X, Trophy, Calendar, BarChart3, Grid3X3, Award, Target, Settings, Shield } from 'lucide-react';
+import { Menu, X, Trophy, Calendar, BarChart3, Grid3X3, Award, Settings, Shield } from 'lucide-react';
 
 const navItems = [
   { to: '/', label: 'Dashboard', icon: Trophy },
@@ -8,7 +8,6 @@ const navItems = [
   { to: '/standings', label: 'Standings', icon: BarChart3 },
   { to: '/playoffs', label: 'Playoffs', icon: Grid3X3 },
   { to: '/awards', label: 'Awards', icon: Award },
-  { to: '/records', label: 'Records', icon: Target },
   { to: '/settings', label: 'Settings', icon: Settings },
   { to: '/admin', label: 'Admin', icon: Shield },
 ];
