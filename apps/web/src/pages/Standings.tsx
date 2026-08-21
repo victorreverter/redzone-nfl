@@ -421,8 +421,9 @@ function SeedRow({ seed, wildcardCandidates, usedTeamIds, onSelect }: {
           {seed.record}
         </span>
       )}
-      {!seed.is_div_winner && !seed.team_id && (
+      {!seed.is_div_winner && (
         <select
+          value={seed.team_id ?? ''}
           onChange={(e) => {
             if (e.target.value) onSelect(Number(e.target.value));
           }}
@@ -430,7 +431,7 @@ function SeedRow({ seed, wildcardCandidates, usedTeamIds, onSelect }: {
         >
           <option value="">Select</option>
           {wildcardCandidates
-            .filter(c => !usedTeamIds.includes(c.team_id))
+            .filter(c => !usedTeamIds.includes(c.team_id) || c.team_id === seed.team_id)
             .map(c => (
               <option key={c.team_id} value={c.team_id}>
                 {c.team_name} ({c.record})
