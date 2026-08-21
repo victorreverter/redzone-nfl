@@ -179,7 +179,7 @@ export function MilestoneSlider() {
                   <div className="absolute left-0 top-0 bottom-0 w-1 md:w-1.5 bg-white/20" />
 
                   {/* Content */}
-                  <div className="relative z-10 h-full p-6 md:p-6 lg:p-8 flex flex-col justify-end">
+                  <div className="relative z-10 h-full p-6 md:pl-20 md:pr-8 md:pt-6 md:pb-8 lg:pl-24 lg:pr-10 lg:pt-8 lg:pb-10 flex flex-col justify-end">
                     <div className="mb-3 md:mb-2 lg:mb-3">
                       <span className="text-xs md:text-sm font-mono font-bold text-white/50 uppercase tracking-[0.2em]">
                         {m.year}
