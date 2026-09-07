@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { api } from '../lib/api';
-import { teamDisplayName } from '../lib/utils';
+import { teamDisplayName, formatNetherlandsGameTime } from '../lib/utils';
 import { Check, RefreshCw, BarChart3 } from 'lucide-react';
 
 interface Game {
@@ -246,6 +246,8 @@ function GameCard({ game, onSave, isSaved }: { game: Game; onSave: (gameId: numb
     setSaving(false);
   }
 
+  const { date: nlDate, time: nlTime } = formatNetherlandsGameTime(game.game_time);
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -267,7 +269,7 @@ function GameCard({ game, onSave, isSaved }: { game: Game; onSave: (gameId: numb
 
       <div className="flex items-center justify-between mb-3 md:mb-4">
         <span className="text-xs md:text-sm text-text-muted font-mono uppercase tracking-wide">
-          {game.game_time ? new Date(game.game_time).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : 'TBD'}
+          {nlTime ? `${nlDate} • ${nlTime}` : nlDate}
         </span>
         {game.points_earned > 0 && (
           <span className="text-xs md:text-sm bg-nfl-green/20 text-nfl-green px-2 md:px-3 py-1 font-mono font-bold uppercase">
