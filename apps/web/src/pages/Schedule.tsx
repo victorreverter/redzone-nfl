@@ -246,6 +246,23 @@ function GameCard({ game, onSave, isSaved }: { game: Game; onSave: (gameId: numb
     setSaving(false);
   }
 
+  function updateScore(value: string, isHome: boolean) {
+    const nextHome = isHome ? value : homeScore;
+    const nextAway = isHome ? awayScore : value;
+
+    if (isHome) setHomeScore(nextHome);
+    else setAwayScore(nextAway);
+
+    const h = Number(nextHome);
+    const a = Number(nextAway);
+
+    if (nextHome !== '' && nextAway !== '' && !Number.isNaN(h) && !Number.isNaN(a)) {
+      if (h > a) setSelected(game.home_team_id);
+      else if (a > h) setSelected(game.away_team_id);
+      else setSelected(null);
+    }
+  }
+
   const { date: nlDate, time: nlTime } = formatNetherlandsGameTime(game.game_time);
 
   return (
@@ -336,7 +353,7 @@ function GameCard({ game, onSave, isSaved }: { game: Game; onSave: (gameId: numb
             type="number"
             placeholder="Home"
             value={homeScore}
-            onChange={(e) => setHomeScore(e.target.value)}
+            onChange={(e) => updateScore(e.target.value, true)}
             className="w-16 md:w-20 bg-gridiron-bg border-2 border-gridiron-border px-2 md:px-3 py-1.5 md:py-2 text-sm md:text-base text-center text-text-primary font-mono font-bold"
           />
           <span className="text-text-muted text-base md:text-lg font-mono font-bold">-</span>
@@ -344,7 +361,7 @@ function GameCard({ game, onSave, isSaved }: { game: Game; onSave: (gameId: numb
             type="number"
             placeholder="Away"
             value={awayScore}
-            onChange={(e) => setAwayScore(e.target.value)}
+            onChange={(e) => updateScore(e.target.value, false)}
             className="w-16 md:w-20 bg-gridiron-bg border-2 border-gridiron-border px-2 md:px-3 py-1.5 md:py-2 text-sm md:text-base text-center text-text-primary font-mono font-bold"
           />
         </div>
