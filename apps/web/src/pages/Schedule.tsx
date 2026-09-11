@@ -42,6 +42,7 @@ export function Schedule() {
   const [loading, setLoading] = useState(true);
   const [savedGames, setSavedGames] = useState<Set<number>>(new Set());
   const [syncing, setSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [weekAccuracy, setWeekAccuracy] = useState<{ correct: number; total: number; percentage: number } | null>(null);
 
   useEffect(() => {
@@ -105,8 +106,9 @@ export function Schedule() {
   async function syncResults() {
     if (!seasonId) return;
     setSyncing(true);
+    setSyncMessage(null);
     try {
-      await api.post(`/espn/sync/${seasonId}`, {});
+      const result = await api.post<{ ok: boolean; updated: number; totalGames: number; seasonYear?: number; error?: string }>(`/espn/sync/${seasonId}`, {});
       // Reload games to show updated scores
       const [gamesData, predictionsData] = await Promise.all([
         api.get<Game[]>(`/games?season_id=${seasonId}&week=${selectedWeek}`),
@@ -125,7 +127,10 @@ export function Schedule() {
       });
 
       setGames(mergedGames);
+      setSyncMessage(`Synced ${result.updated} game${result.updated === 1 ? '' : 's'} from ESPN`);
     } catch (error) {
+      const message = error instanceof Error ? error.message : 'Sync failed';
+      setSyncMessage(message);
       console.error('Sync failed:', error);
     } finally {
       setSyncing(false);
@@ -172,6 +177,16 @@ export function Schedule() {
           {syncing ? 'Syncing...' : 'Sync Results'}
         </motion.button>
       </div>
+
+      {syncMessage && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className={`text-sm font-bold uppercase tracking-wide ${syncMessage.startsWith('Synced') ? 'text-nfl-green' : 'text-nfl-red'}`}
+        >
+          {syncMessage}
+        </motion.div>
+      )}
 
       {weekAccuracy && weekAccuracy.total > 0 && (
         <motion.div 

@@ -95,12 +95,20 @@ router.post('/sync/:seasonId', async (c) => {
     let updated = 0;
     let totalGames = 0;
 
+    const fetchHeaders = {
+      'User-Agent': 'curl/8.7.1',
+      'Accept': '*/*',
+    };
+
     // Fetch all weeks (1-18) from ESPN
     for (let week = 1; week <= 18; week++) {
       const url = `https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?seasontype=2&year=${season.year}&week=${week}`;
-      
-      const res = await fetch(url);
-      if (!res.ok) continue;
+
+      const res = await fetch(url, { headers: fetchHeaders });
+      if (!res.ok) {
+        console.error(`ESPN week ${week} fetch failed: ${res.status} ${res.statusText}`);
+        continue;
+      }
 
       const data = await res.json() as any;
       const events = data.events || [];
@@ -148,7 +156,7 @@ router.post('/sync/:seasonId', async (c) => {
       }
     }
 
-    return c.json({ ok: true, updated, totalGames });
+    return c.json({ ok: true, updated, totalGames, seasonYear: season.year });
   } catch (e) {
     console.error('ESPN sync error:', e);
     return c.json({ error: `Failed to sync: ${(e as Error).message}` }, 500);

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { api } from '../lib/api';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, RefreshCw } from 'lucide-react';
 
 interface Game {
   id: number;
@@ -93,6 +93,8 @@ function GamesAdmin({ seasonId }: { seasonId: number }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<number | null>(null);
   const [message, setMessage] = useState('');
+  const [syncing, setSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState('');
 
   useEffect(() => {
     async function load() {
@@ -122,9 +124,25 @@ function GamesAdmin({ seasonId }: { seasonId: number }) {
     }
   }
 
+  async function syncResults() {
+    setSyncing(true);
+    setSyncMessage('');
+    try {
+      const result = await api.post<{ ok: boolean; updated: number; totalGames: number; error?: string }>(`/espn/sync/${seasonId}`, {});
+      setSyncMessage(`Synced ${result.updated} game${result.updated === 1 ? '' : 's'} from ESPN`);
+      // Reload current week
+      const data = await api.get<Game[]>(`/games?season_id=${seasonId}&week=${week}`);
+      setGames(data.map(g => ({ ...g, home_score: g.home_score ?? null, away_score: g.away_score ?? null })));
+    } catch (e: unknown) {
+      setSyncMessage(`Sync failed: ${e instanceof Error ? e.message : 'Unknown'}`);
+    } finally {
+      setSyncing(false);
+    }
+  }
+
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-3">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
         <select
           value={week}
           onChange={(e) => setWeek(Number(e.target.value))}
@@ -134,7 +152,24 @@ function GamesAdmin({ seasonId }: { seasonId: number }) {
             <option key={w} value={w}>Week {w}</option>
           ))}
         </select>
+        <button
+          onClick={syncResults}
+          disabled={syncing}
+          className={`flex items-center justify-center gap-2 text-white text-sm px-4 py-2 font-bold uppercase tracking-wide transition-all ${
+            syncing ? 'bg-text-muted' : 'bg-nfl-red hover:bg-red-800 shadow-glow-red'
+          }`}
+        >
+          <RefreshCw size={16} className={syncing ? 'animate-spin' : ''} />
+          {syncing ? 'Syncing...' : 'Fetch ESPN Results'}
+        </button>
+      </div>
+      <div className="flex items-center gap-3">
         {message && <span className="text-sm text-nfl-green font-bold">{message}</span>}
+        {syncMessage && (
+          <span className={`text-sm font-bold ${syncMessage.startsWith('Synced') ? 'text-nfl-green' : 'text-nfl-red'}`}>
+            {syncMessage}
+          </span>
+        )}
       </div>
 
       {loading ? (
