@@ -37,7 +37,7 @@ interface Prediction {
 
 export function Schedule() {
   const [games, setGames] = useState<Game[]>([]);
-  const [selectedWeek, setSelectedWeek] = useState(1);
+  const [selectedWeek, setSelectedWeek] = useState<number | null>(null);
   const [seasonId, setSeasonId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [savedGames, setSavedGames] = useState<Set<number>>(new Set());
@@ -46,16 +46,30 @@ export function Schedule() {
   const [weekAccuracy, setWeekAccuracy] = useState<{ correct: number; total: number; percentage: number } | null>(null);
 
   useEffect(() => {
-    async function load() {
+    async function initialize() {
       try {
         const seasons = await api.get<{ id: number }[]>('/seasons');
         if (seasons.length === 0) { setLoading(false); return; }
         setSeasonId(seasons[0].id);
 
+        const currentWeek = await api.get<{ week: number }>(`/games/current-week/${seasons[0].id}`);
+        setSelectedWeek(currentWeek.week);
+      } catch {
+        // API not ready
+        setLoading(false);
+      }
+    }
+    initialize();
+  }, []);
+
+  useEffect(() => {
+    async function load() {
+      if (!seasonId || selectedWeek === null) return;
+      try {
         const [gamesData, predictionsData, accuracyData] = await Promise.all([
-          api.get<Game[]>(`/games?season_id=${seasons[0].id}&week=${selectedWeek}`),
-          api.get<Prediction[]>(`/predictions/weekly/${seasons[0].id}?week=${selectedWeek}`),
-          api.get<{ correct: number; total: number; percentage: number }>(`/predictions/accuracy/${seasons[0].id}/week/${selectedWeek}`),
+          api.get<Game[]>(`/games?season_id=${seasonId}&week=${selectedWeek}`),
+          api.get<Prediction[]>(`/predictions/weekly/${seasonId}?week=${selectedWeek}`),
+          api.get<{ correct: number; total: number; percentage: number }>(`/predictions/accuracy/${seasonId}/week/${selectedWeek}`),
         ]);
 
         // Merge predictions into games
@@ -80,7 +94,7 @@ export function Schedule() {
       }
     }
     load();
-  }, [selectedWeek]);
+  }, [selectedWeek, seasonId]);
 
   async function savePrediction(gameId: number, winnerTeamId: number | null, homeScore?: number, awayScore?: number) {
     if (!seasonId) return;
@@ -104,7 +118,7 @@ export function Schedule() {
   }
 
   async function syncResults() {
-    if (!seasonId) return;
+    if (!seasonId || selectedWeek === null) return;
     setSyncing(true);
     setSyncMessage(null);
     try {
@@ -156,7 +170,7 @@ export function Schedule() {
       </motion.h1>
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
         <select
-          value={selectedWeek}
+          value={selectedWeek ?? 1}
           onChange={(e) => setSelectedWeek(Number(e.target.value))}
           className="bg-gridiron-surface border-2 border-gridiron-border px-4 py-2.5 text-base font-bold text-text-primary uppercase flex-1 sm:flex-none"
         >

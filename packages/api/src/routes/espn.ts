@@ -92,6 +92,10 @@ router.post('/sync/:seasonId', async (c) => {
       teamMap.set(t.abbreviation.toLowerCase(), t.id);
     }
 
+    // Alias: ESPN uses WSH but DB uses WAS
+    const wasId = teamMap.get('was');
+    if (wasId) teamMap.set('wsh', wasId);
+
     let updated = 0;
     let totalGames = 0;
 
@@ -129,7 +133,10 @@ router.post('/sync/:seasonId', async (c) => {
         const homeTeamId = teamMap.get(homeAbbr);
         const awayTeamId = teamMap.get(awayAbbr);
 
-        if (!homeTeamId || !awayTeamId) continue;
+        if (!homeTeamId || !awayTeamId) {
+          console.log(`Skipping ESPN event ${event.name}: unknown abbreviation ${homeAbbr}/${awayAbbr}`);
+          continue;
+        }
 
         const status = competition.status?.type?.name || 'STATUS_SCHEDULED';
         const homeScore = parseInt(homeTeam.score) || 0;

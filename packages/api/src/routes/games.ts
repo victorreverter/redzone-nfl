@@ -45,6 +45,34 @@ router.get('/:id', async (c) => {
   return c.json(game);
 });
 
+router.get('/current-week/:seasonId', async (c) => {
+  const { DB } = c.env;
+  const seasonId = c.req.param('seasonId');
+
+  const rows = await DB.prepare(
+    'SELECT week, game_time FROM games WHERE season_id = ? ORDER BY week, game_time'
+  ).bind(seasonId).all();
+
+  const weeks = rows.results as { week: number; game_time: string }[];
+  if (weeks.length === 0) return c.json({ week: 1 });
+
+  const weekStarts = new Map<number, Date>();
+  for (const { week, game_time } of weeks) {
+    if (!weekStarts.has(week)) weekStarts.set(week, new Date(game_time));
+  }
+
+  const now = new Date();
+  const sorted = Array.from(weekStarts.entries()).sort((a, b) => a[1].getTime() - b[1].getTime());
+
+  let currentWeek = sorted[0][0];
+  for (const [week, start] of sorted) {
+    if (start <= now) currentWeek = week;
+    else break;
+  }
+
+  return c.json({ week: currentWeek });
+});
+
 router.post('/', async (c) => {
   const { DB } = c.env;
   const { season_id, week, home_team_id, away_team_id, game_time } = await c.req.json();
