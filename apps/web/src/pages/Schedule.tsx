@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { api } from '../lib/api';
-import { teamDisplayName, formatNetherlandsGameTime } from '../lib/utils';
+import { teamDisplayName, formatNetherlandsGameTime, formatRecord, type TeamRecord } from '../lib/utils';
 import { Check, RefreshCw, BarChart3 } from 'lucide-react';
 
 interface Game {
@@ -44,6 +44,7 @@ export function Schedule() {
   const [syncing, setSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [weekAccuracy, setWeekAccuracy] = useState<{ correct: number; total: number; percentage: number } | null>(null);
+  const [teamRecords, setTeamRecords] = useState<Map<number, TeamRecord>>(new Map());
 
   useEffect(() => {
     async function initialize() {
@@ -66,11 +67,18 @@ export function Schedule() {
     async function load() {
       if (!seasonId || selectedWeek === null) return;
       try {
-        const [gamesData, predictionsData, accuracyData] = await Promise.all([
+        const [gamesData, predictionsData, accuracyData, recordsData] = await Promise.all([
           api.get<Game[]>(`/games?season_id=${seasonId}&week=${selectedWeek}`),
           api.get<Prediction[]>(`/predictions/weekly/${seasonId}?week=${selectedWeek}`),
           api.get<{ correct: number; total: number; percentage: number }>(`/predictions/accuracy/${seasonId}/week/${selectedWeek}`),
+          api.get<{ team_id: number; wins: number; losses: number; ties: number }[]>(`/games/team-records/${seasonId}`),
         ]);
+
+        const recordsMap = new Map<number, TeamRecord>();
+        for (const r of recordsData) {
+          recordsMap.set(r.team_id, { wins: r.wins, losses: r.losses, ties: r.ties });
+        }
+        setTeamRecords(recordsMap);
 
         // Merge predictions into games
         const mergedGames = gamesData.map(game => {
@@ -240,6 +248,7 @@ export function Schedule() {
               game={game}
               onSave={savePrediction}
               isSaved={savedGames.has(game.id)}
+              records={teamRecords}
             />
           ))}
         </div>
@@ -248,7 +257,7 @@ export function Schedule() {
   );
 }
 
-function GameCard({ game, onSave, isSaved }: { game: Game; onSave: (gameId: number, winnerId: number | null, hs?: number, as?: number) => void; isSaved: boolean }) {
+function GameCard({ game, onSave, isSaved, records }: { game: Game; onSave: (gameId: number, winnerId: number | null, hs?: number, as?: number) => void; isSaved: boolean; records: Map<number, TeamRecord> }) {
   const [homeScore, setHomeScore] = useState(game.predicted_home_score?.toString() ?? '');
   const [awayScore, setAwayScore] = useState(game.predicted_away_score?.toString() ?? '');
   const [selected, setSelected] = useState<number | null>(game.predicted_winner_team_id);
@@ -339,7 +348,9 @@ function GameCard({ game, onSave, isSaved }: { game: Game; onSave: (gameId: numb
             <img src={game.home_team_logo} alt={game.home_team_abbr} className="w-10 h-10 md:w-16 md:h-16 mx-auto mb-1 md:mb-2 object-contain" />
           )}
           <span className="text-sm md:text-lg font-bold hidden md:block text-text-primary uppercase tracking-wide truncate">{teamDisplayName(game.home_team_city, game.home_team_name)}</span>
+          <span className="text-[10px] md:text-xs text-text-muted font-mono uppercase tracking-wide hidden md:block">{formatRecord(records.get(game.home_team_id))}</span>
           <span className="text-xs md:text-lg font-bold md:hidden text-text-primary uppercase">{game.home_team_abbr}</span>
+          <span className="text-[10px] text-text-muted font-mono uppercase tracking-wide md:hidden">{formatRecord(records.get(game.home_team_id))}</span>
         </motion.button>
 
         <div className="text-center">
@@ -370,7 +381,9 @@ function GameCard({ game, onSave, isSaved }: { game: Game; onSave: (gameId: numb
             <img src={game.away_team_logo} alt={game.away_team_abbr} className="w-10 h-10 md:w-16 md:h-16 mx-auto mb-1 md:mb-2 object-contain" />
           )}
           <span className="text-sm md:text-lg font-bold hidden md:block text-text-primary uppercase tracking-wide truncate">{teamDisplayName(game.away_team_city, game.away_team_name)}</span>
+          <span className="text-[10px] md:text-xs text-text-muted font-mono uppercase tracking-wide hidden md:block">{formatRecord(records.get(game.away_team_id))}</span>
           <span className="text-xs md:text-lg font-bold md:hidden text-text-primary uppercase">{game.away_team_abbr}</span>
+          <span className="text-[10px] text-text-muted font-mono uppercase tracking-wide md:hidden">{formatRecord(records.get(game.away_team_id))}</span>
         </motion.button>
       </div>
 

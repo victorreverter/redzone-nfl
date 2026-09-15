@@ -73,6 +73,38 @@ router.get('/current-week/:seasonId', async (c) => {
   return c.json({ week: currentWeek });
 });
 
+router.get('/team-records/:seasonId', async (c) => {
+  const { DB } = c.env;
+  const seasonId = c.req.param('seasonId');
+
+  const records = await DB.prepare(`
+    WITH team_games AS (
+      SELECT
+        home_team_id AS team_id,
+        CASE WHEN home_score > away_score THEN 1 ELSE 0 END AS wins,
+        CASE WHEN home_score < away_score THEN 1 ELSE 0 END AS losses,
+        CASE WHEN home_score = away_score THEN 1 ELSE 0 END AS ties
+      FROM games WHERE season_id = ? AND status = 'final'
+      UNION ALL
+      SELECT
+        away_team_id AS team_id,
+        CASE WHEN away_score > home_score THEN 1 ELSE 0 END AS wins,
+        CASE WHEN away_score < home_score THEN 1 ELSE 0 END AS losses,
+        CASE WHEN away_score = home_score THEN 1 ELSE 0 END AS ties
+      FROM games WHERE season_id = ? AND status = 'final'
+    )
+    SELECT t.id AS team_id, t.abbreviation, t.name,
+           COALESCE(SUM(tg.wins), 0) AS wins,
+           COALESCE(SUM(tg.losses), 0) AS losses,
+           COALESCE(SUM(tg.ties), 0) AS ties
+    FROM teams t
+    LEFT JOIN team_games tg ON t.id = tg.team_id
+    GROUP BY t.id
+  `).bind(seasonId, seasonId).all();
+
+  return c.json(records.results);
+});
+
 router.post('/', async (c) => {
   const { DB } = c.env;
   const { season_id, week, home_team_id, away_team_id, game_time } = await c.req.json();

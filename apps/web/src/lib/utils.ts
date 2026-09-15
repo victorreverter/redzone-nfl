@@ -31,3 +31,16 @@ export function formatNetherlandsGameTime(iso: string | null | undefined): {
 
   return { date, time };
 }
+
+export interface TeamRecord {
+  wins: number;
+  losses: number;
+  ties: number;
+}
+
+export function formatRecord(record: TeamRecord | null | undefined): string {
+  if (!record) return '(0-0)';
+  const { wins = 0, losses = 0, ties = 0 } = record;
+  if (ties > 0) return `(${wins}-${losses}-${ties})`;
+  return `(${wins}-${losses})`;
+}
