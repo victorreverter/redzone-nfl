@@ -67,7 +67,7 @@ export function Settings() {
       if (result.error) {
         setMessage(result.error);
       } else {
-        setMessage(`Imported ${result.imported} of ${result.total} games from ESPN.`);
+        setMessage(`Imported ${result.imported} of ${result.total} games from the bundled schedule.`);
       }
     } catch (e: unknown) {
       setMessage(`Error importing: ${e instanceof Error ? e.message : 'Unknown error'}. Use manual entry.`);
@@ -186,8 +186,8 @@ export function Settings() {
 
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-lg font-bold text-text-primary uppercase tracking-wide">Import Schedule from ESPN</p>
-              <p className="text-base text-text-secondary uppercase tracking-wide font-bold">Fetch full regular season schedule (all 18 weeks)</p>
+              <p className="text-lg font-bold text-text-primary uppercase tracking-wide">Import Schedule</p>
+              <p className="text-base text-text-secondary uppercase tracking-wide font-bold">Load the bundled full regular season schedule</p>
             </div>
             <motion.button
               whileHover={{ scale: 1.05 }}

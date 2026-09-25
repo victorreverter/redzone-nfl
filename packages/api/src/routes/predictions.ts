@@ -5,6 +5,48 @@ type Env = { Bindings: AppEnv['Bindings'] };
 
 const router = new Hono<Env>();
 
+type StandingsTeamRow = {
+  id: number;
+  name: string;
+  abbreviation: string;
+  logo_url: string | null;
+  conference: string;
+  division: string;
+  wins: number;
+  losses: number;
+};
+
+type DivisionPredictionRow = {
+  team_id: number;
+  predicted_position: number;
+};
+
+type DivisionStanding = {
+  team_id: number;
+  team_name: string;
+  team_abbr: string;
+  logo_url: string | null;
+  wins: number;
+  losses: number;
+  position: number;
+};
+
+type Seed = {
+  seed: number;
+  team_id: number | null;
+  team_name: string | null;
+  team_abbr: string | null;
+  record: string | null;
+  is_div_winner: boolean;
+};
+
+type WildcardCandidate = {
+  team_id: number;
+  team_name: string;
+  record: string;
+  conference: string;
+};
+
 router.get('/division/:seasonId', async (c) => {
   const { DB } = c.env;
   const seasonId = c.req.param('seasonId');
@@ -32,7 +74,7 @@ router.get('/standings/:seasonId', async (c) => {
     LEFT JOIN predictions_record pr ON t.id = pr.team_id AND pr.season_id = ?
     ORDER BY t.conference, t.division, pr.predicted_wins DESC, pr.predicted_losses ASC
   `).bind(seasonId).all();
-  const teamsWithRecords = teamsResult.results || [];
+  const teamsWithRecords = (teamsResult.results || []) as StandingsTeamRow[];
 
   // Get division predictions for drag order of 0-0 teams
   const divPredResult = await DB.prepare(`
@@ -40,14 +82,14 @@ router.get('/standings/:seasonId', async (c) => {
     FROM predictions_division pd
     WHERE pd.season_id = ?
   `).bind(seasonId).all();
-  const divPreds = divPredResult.results || [];
+  const divPreds = (divPredResult.results || []) as DivisionPredictionRow[];
   const divPredMap = new Map<number, number>();
   for (const p of divPreds) divPredMap.set(p.team_id, p.predicted_position);
 
   // Build divisions
   const conferences = ['AFC', 'NFC'];
   const divNames = ['East', 'North', 'South', 'West'];
-  const divData: Record<string, any[]> = {};
+  const divData: Record<string, DivisionStanding[]> = {};
 
   for (const conf of conferences) {
     for (const div of divNames) {
@@ -85,12 +127,12 @@ router.get('/standings/:seasonId', async (c) => {
   }
 
   // Calculate seeds per conference
-  const seeds: Record<string, any[]> = {};
-  const wildcardCandidates: any[] = [];
+  const seeds: Record<string, Seed[]> = {};
+  const wildcardCandidates: WildcardCandidate[] = [];
 
   for (const conf of conferences) {
-    const divWinners: any[] = [];
-    const nonWinners: any[] = [];
+    const divWinners: (DivisionStanding & { is_div_winner: boolean })[] = [];
+    const nonWinners: DivisionStanding[] = [];
 
     for (const div of divNames) {
       const key = `${conf}-${div}`;
@@ -164,13 +206,13 @@ router.post('/standings', async (c) => {
   // Save division positions (for 0-0 teams drag order)
   if (divisions && typeof divisions === 'object') {
     for (const [, teamIds] of Object.entries(divisions) as [string, number[]][]) {
-      teamIds.forEach(async (teamId, index) => {
+      for (const [index, teamId] of teamIds.entries()) {
         await DB.prepare(
           `INSERT INTO predictions_division (season_id, team_id, predicted_position) 
            VALUES (?, ?, ?) 
            ON CONFLICT(season_id, team_id) DO UPDATE SET predicted_position = ?, updated_at = datetime('now')`
         ).bind(season_id, teamId, index + 1, index + 1).run();
-      });
+      }
     }
   }
 
@@ -261,8 +303,19 @@ router.post('/playoff', async (c) => {
   const { DB } = c.env;
   const { season_id, round, slot, team_id, predicted_winner_team_id } = await c.req.json();
   await DB.prepare(
-    'INSERT INTO predictions_playoff (season_id, round, slot, team_id, predicted_winner_team_id) VALUES (?, ?, ?, ?, ?)'
-  ).bind(season_id, round, slot, team_id || null, predicted_winner_team_id || null).run();
+    `INSERT INTO predictions_playoff (season_id, round, slot, team_id, predicted_winner_team_id)
+     VALUES (?, ?, ?, ?, ?)
+     ON CONFLICT(season_id, round, slot) DO UPDATE SET
+       team_id = ?, predicted_winner_team_id = ?, updated_at = datetime('now')`
+  ).bind(
+    season_id,
+    round,
+    slot,
+    team_id || null,
+    predicted_winner_team_id || null,
+    team_id || null,
+    predicted_winner_team_id || null
+  ).run();
   return c.json({ ok: true });
 });
 

@@ -5,6 +5,22 @@ type Env = { Bindings: AppEnv['Bindings'] };
 
 const router = new Hono<Env>();
 
+type GameRow = {
+  id: number;
+  home_team_id: number;
+  away_team_id: number;
+  home_score: number | null;
+  away_score: number | null;
+  status: string;
+};
+
+type WeeklyPredictionRow = {
+  id: number;
+  predicted_winner_team_id: number | null;
+  predicted_home_score: number | null;
+  predicted_away_score: number | null;
+};
+
 router.get('/', async (c) => {
   const { DB } = c.env;
   const seasonId = c.req.query('season_id');
@@ -127,7 +143,23 @@ router.patch('/:id', async (c) => {
   if (sets.length === 0) return c.json({ error: 'Nothing to update' }, 400);
   vals.push(id);
   await DB.prepare(`UPDATE games SET ${sets.join(', ')}, updated_at = datetime('now') WHERE id = ?`).bind(...vals).run();
-  return c.json({ ok: true });
+
+  const updatedGame = await DB.prepare(
+    'SELECT id, home_team_id, away_team_id, home_score, away_score, status FROM games WHERE id = ?'
+  ).bind(id).first() as GameRow | null;
+
+  if (!updatedGame) return c.json({ error: 'Game not found' }, 404);
+
+  let pointsEarned: number | null = null;
+  if (
+    updatedGame.status === 'final' &&
+    updatedGame.home_score !== null &&
+    updatedGame.away_score !== null
+  ) {
+    pointsEarned = await calculatePointsForGame(DB, updatedGame);
+  }
+
+  return c.json({ ok: true, points_earned: pointsEarned });
 });
 
 router.post('/:id/result', async (c) => {
@@ -139,27 +171,13 @@ router.post('/:id/result', async (c) => {
     "UPDATE games SET home_score = ?, away_score = ?, status = ?, updated_at = datetime('now') WHERE id = ?"
   ).bind(home_score, away_score, status, id).run();
 
-  const game = await DB.prepare('SELECT * FROM games WHERE id = ?').bind(id).first() as any;
-  const winnerTeamId = home_score > away_score ? game.home_team_id : away_score > home_score ? game.away_team_id : null;
+  const game = await DB.prepare(
+    'SELECT id, home_team_id, away_team_id, home_score, away_score, status FROM games WHERE id = ?'
+  ).bind(id).first() as GameRow | null;
+  if (!game) return c.json({ error: 'Game not found' }, 404);
 
-  const pred = await DB.prepare(
-    'SELECT * FROM predictions_weekly WHERE game_id = ?'
-  ).bind(id).first() as any;
-
-  if (pred) {
-    let points = 0;
-    if (pred.predicted_winner_team_id === winnerTeamId) {
-      points = 1;
-      if (pred.predicted_home_score === home_score && pred.predicted_away_score === away_score) {
-        points = 5;
-      }
-    }
-    await DB.prepare(
-      "UPDATE predictions_weekly SET points_earned = ?, updated_at = datetime('now') WHERE id = ?"
-    ).bind(points, pred.id).run();
-  }
-
-  return c.json({ ok: true, points_earned: pred?.points_earned ?? 0 });
+  const pointsEarned = await calculatePointsForGame(DB, game);
+  return c.json({ ok: true, points_earned: pointsEarned });
 });
 
 router.delete('/:id', async (c) => {
@@ -178,5 +196,36 @@ router.delete('/:id', async (c) => {
   
   return c.json({ ok: true });
 });
+
+async function calculatePointsForGame(DB: D1Database, game: GameRow): Promise<number> {
+  const pred = await DB.prepare(
+    'SELECT id, predicted_winner_team_id, predicted_home_score, predicted_away_score FROM predictions_weekly WHERE game_id = ?'
+  ).bind(game.id).first() as WeeklyPredictionRow | null;
+
+  if (!pred || game.home_score === null || game.away_score === null) return 0;
+
+  const winnerTeamId = game.home_score > game.away_score
+    ? game.home_team_id
+    : game.away_score > game.home_score
+      ? game.away_team_id
+      : null;
+
+  let points = 0;
+  if (pred.predicted_winner_team_id === winnerTeamId) {
+    points = 1;
+    if (
+      pred.predicted_home_score === game.home_score &&
+      pred.predicted_away_score === game.away_score
+    ) {
+      points = 5;
+    }
+  }
+
+  await DB.prepare(
+    "UPDATE predictions_weekly SET points_earned = ?, updated_at = datetime('now') WHERE id = ?"
+  ).bind(points, pred.id).run();
+
+  return points;
+}
 
 export { router as gamesRouter };

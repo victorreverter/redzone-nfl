@@ -76,7 +76,8 @@ CREATE TABLE IF NOT EXISTS predictions_playoff (
   updated_at TEXT NOT NULL DEFAULT (datetime('now')),
   FOREIGN KEY (season_id) REFERENCES seasons(id),
   FOREIGN KEY (team_id) REFERENCES teams(id),
-  FOREIGN KEY (predicted_winner_team_id) REFERENCES teams(id)
+  FOREIGN KEY (predicted_winner_team_id) REFERENCES teams(id),
+  UNIQUE(season_id, round, slot)
 );
 
 CREATE TABLE IF NOT EXISTS predictions_record (

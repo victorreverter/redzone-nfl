@@ -43,7 +43,9 @@ export function Admin() {
       try {
         const seasons = await api.get<{ id: number }[]>('/seasons');
         if (seasons.length > 0) setSeasonId(seasons[0].id);
-      } catch {} finally { setLoading(false); }
+      } catch {
+        setSeasonId(null);
+      } finally { setLoading(false); }
     }
     load();
   }, []);
@@ -106,7 +108,9 @@ function GamesAdmin({ seasonId }: { seasonId: number }) {
           home_score: g.home_score ?? null,
           away_score: g.away_score ?? null,
         })));
-      } catch {} finally { setLoading(false); }
+      } catch {
+        setGames([]);
+      } finally { setLoading(false); }
     }
     load();
   }, [seasonId, week]);
@@ -256,7 +260,10 @@ function AwardsAdmin({ seasonId }: { seasonId: number }) {
         }
         setForms(f);
         setAwards(data);
-      } catch {} finally { setLoading(false); }
+      } catch {
+        setForms({});
+        setAwards([]);
+      } finally { setLoading(false); }
     }
     load();
   }, [seasonId]);
