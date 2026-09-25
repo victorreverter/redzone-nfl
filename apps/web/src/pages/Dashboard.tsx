@@ -52,6 +52,12 @@ export function Dashboard() {
   }, []);
 
   const currentSeason = seasons[0];
+  const accuracyValue = accuracy && accuracy.overall.total > 0 ? `${accuracy.overall.percentage}%` : 'Pending';
+  const accuracySubtitle = accuracy && accuracy.overall.total > 0 ? `${accuracy.overall.correct}/${accuracy.overall.total}` : 'Completed games only';
+  const regularValue = accuracy && accuracy.regular.total > 0 ? `${accuracy.regular.percentage}%` : 'Pending';
+  const regularSubtitle = accuracy && accuracy.regular.total > 0 ? `${accuracy.regular.correct}/${accuracy.regular.total}` : 'Completed games only';
+  const postseasonValue = accuracy && accuracy.postseason.total > 0 ? `${accuracy.postseason.percentage}%` : 'Pending';
+  const postseasonSubtitle = accuracy && accuracy.postseason.total > 0 ? `${accuracy.postseason.correct}/${accuracy.postseason.total}` : 'Completed games only';
 
   if (loading) {
     return (
@@ -113,8 +119,8 @@ export function Dashboard() {
           <StatCard
             icon={<BarChart3 className="text-nfl-green" size={32} />}
             label="Accuracy"
-            value={accuracy ? `${accuracy.overall.percentage}%` : '0%'}
-            subtitle={accuracy ? `${accuracy.overall.correct}/${accuracy.overall.total}` : '0/0'}
+            value={accuracyValue}
+            subtitle={accuracySubtitle}
           />
         </motion.div>
         <motion.div
@@ -125,8 +131,8 @@ export function Dashboard() {
           <StatCard
             icon={<Target className="text-nfl-blue" size={32} />}
             label="Regular Season"
-            value={accuracy ? `${accuracy.regular.percentage}%` : '0%'}
-            subtitle={accuracy ? `${accuracy.regular.correct}/${accuracy.regular.total}` : '0/0'}
+            value={regularValue}
+            subtitle={regularSubtitle}
           />
         </motion.div>
         <motion.div
@@ -137,8 +143,8 @@ export function Dashboard() {
           <StatCard
             icon={<TrendingUp className="text-nfl-red" size={32} />}
             label="Postseason"
-            value={accuracy ? `${accuracy.postseason.percentage}%` : '0%'}
-            subtitle={accuracy ? `${accuracy.postseason.correct}/${accuracy.postseason.total}` : '0/0'}
+            value={postseasonValue}
+            subtitle={postseasonSubtitle}
           />
         </motion.div>
       </div>

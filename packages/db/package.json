@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "migrate": "wrangler d1 migrations apply redzone-db --local"
+    "migrate": "wrangler d1 migrations apply redzone-db --local --config ../api/wrangler.toml --cwd ."
   },
   "devDependencies": {
     "wrangler": "^4.0.0"

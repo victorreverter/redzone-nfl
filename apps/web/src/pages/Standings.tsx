@@ -171,6 +171,7 @@ export function Standings() {
       season_id: seasonId,
       records,
       divisions: divOrders,
+      seeds: data.seeds,
     });
 
     // Reload data
@@ -372,14 +373,14 @@ export function Standings() {
                       seed={seed}
                       wildcardCandidates={data.wildcard_candidates.filter(c => c.conference === conf)}
                       usedTeamIds={confSeeds.filter(s => s.seed !== seed.seed && s.team_id !== null).map(s => s.team_id as number)}
-                      onSelect={(teamId) => {
+                      onSelect={(teamId, record) => {
                         setData({
                           ...data,
                           seeds: {
                             ...data.seeds,
                             [conf]: data.seeds[conf].map(s =>
                               s.seed === seed.seed
-                                ? { ...s, team_id: teamId, team_name: teams.find(t => t.id === teamId)?.name || null, team_abbr: teams.find(t => t.id === teamId)?.abbreviation || null, record: '0-0' }
+                                ? { ...s, team_id: teamId, team_name: teams.find(t => t.id === teamId)?.name || null, team_abbr: teams.find(t => t.id === teamId)?.abbreviation || null, record }
                                 : s
                             ),
                           },
@@ -401,7 +402,7 @@ function SeedRow({ seed, wildcardCandidates, usedTeamIds, onSelect }: {
   seed: Seed;
   wildcardCandidates: Array<{ team_id: number; team_name: string; record: string; conference: string }>;
   usedTeamIds: number[];
-  onSelect: (teamId: number) => void;
+  onSelect: (teamId: number, record: string) => void;
 }) {
 
   return (
@@ -425,7 +426,9 @@ function SeedRow({ seed, wildcardCandidates, usedTeamIds, onSelect }: {
         <select
           value={seed.team_id ?? ''}
           onChange={(e) => {
-            if (e.target.value) onSelect(Number(e.target.value));
+            const teamId = Number(e.target.value);
+            const candidate = wildcardCandidates.find(c => c.team_id === teamId);
+            if (candidate) onSelect(candidate.team_id, candidate.record);
           }}
           className="bg-gridiron-bg border-2 border-gridiron-border px-2 py-1 text-xs text-text-primary font-bold"
         >

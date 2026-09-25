@@ -6,6 +6,7 @@ compatibility_date = "2025-04-01"
 binding = "DB"
 database_name = "redzone-db"
 database_id = "8047c370-a9b5-4cd2-bb19-e8dc870cf744"
+migrations_dir = "../db/migrations"
 
 [vars]
 THE_SPORTS_DB_API_KEY = ""

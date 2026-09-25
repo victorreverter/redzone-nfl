@@ -47,6 +47,12 @@ type WildcardCandidate = {
   conference: string;
 };
 
+type SeedOverrideRow = {
+  conference: string;
+  seed: number;
+  team_id: number;
+};
+
 router.get('/division/:seasonId', async (c) => {
   const { DB } = c.env;
   const seasonId = c.req.param('seasonId');
@@ -85,6 +91,17 @@ router.get('/standings/:seasonId', async (c) => {
   const divPreds = (divPredResult.results || []) as DivisionPredictionRow[];
   const divPredMap = new Map<number, number>();
   for (const p of divPreds) divPredMap.set(p.team_id, p.predicted_position);
+
+  const seedOverrideResult = await DB.prepare(`
+    SELECT conference, seed, team_id
+    FROM predictions_seed_override
+    WHERE season_id = ?
+  `).bind(seasonId).all();
+  const seedOverrides = (seedOverrideResult.results || []) as SeedOverrideRow[];
+  const seedOverrideMap = new Map<string, number>();
+  for (const override of seedOverrides) {
+    seedOverrideMap.set(`${override.conference}:${override.seed}`, override.team_id);
+  }
 
   // Build divisions
   const conferences = ['AFC', 'NFC'];
@@ -155,12 +172,44 @@ router.get('/standings/:seasonId', async (c) => {
       return a.losses - b.losses;
     });
 
+    const usedTeamIds = new Set(divWinners.map(t => t.team_id));
+    const wildcardSeeds: Seed[] = Array.from({ length: 3 }, (_, i) => ({
+      seed: i + 5,
+      team_id: null,
+      team_name: null,
+      team_abbr: null,
+      record: null,
+      is_div_winner: false,
+    }));
+
+    for (const wildcardSeed of wildcardSeeds) {
+      const overrideTeamId = seedOverrideMap.get(`${conf}:${wildcardSeed.seed}`);
+      const overrideTeam = overrideTeamId
+        ? nonWinners.find(t => t.team_id === overrideTeamId)
+        : undefined;
+      if (overrideTeam && !usedTeamIds.has(overrideTeam.team_id)) {
+        wildcardSeed.team_id = overrideTeam.team_id;
+        wildcardSeed.team_name = overrideTeam.team_name;
+        wildcardSeed.team_abbr = overrideTeam.team_abbr;
+        wildcardSeed.record = `${overrideTeam.wins}-${overrideTeam.losses}`;
+        usedTeamIds.add(overrideTeam.team_id);
+      }
+    }
+
+    for (const wildcardSeed of wildcardSeeds) {
+      if (wildcardSeed.team_id !== null) continue;
+      const nextTeam = nonWinners.find(t => !usedTeamIds.has(t.team_id));
+      if (!nextTeam) continue;
+      wildcardSeed.team_id = nextTeam.team_id;
+      wildcardSeed.team_name = nextTeam.team_name;
+      wildcardSeed.team_abbr = nextTeam.team_abbr;
+      wildcardSeed.record = `${nextTeam.wins}-${nextTeam.losses}`;
+      usedTeamIds.add(nextTeam.team_id);
+    }
+
     seeds[conf] = [
       ...divWinners.map((t, i) => ({ seed: i + 1, team_id: t.team_id, team_name: t.team_name, team_abbr: t.team_abbr, record: `${t.wins}-${t.losses}`, is_div_winner: true })),
-      ...Array.from({ length: 3 }, (_, i) => {
-        const t = nonWinners[i];
-        return t ? { seed: i + 5, team_id: t.team_id, team_name: t.team_name, team_abbr: t.team_abbr, record: `${t.wins}-${t.losses}`, is_div_winner: false } : { seed: i + 5, team_id: null, team_name: null, team_abbr: null, record: null, is_div_winner: false };
-      }),
+      ...wildcardSeeds,
     ];
 
     // Collect wildcard candidates (all non-winners with records)
@@ -190,7 +239,7 @@ router.post('/division', async (c) => {
 // Combined save: records + division positions
 router.post('/standings', async (c) => {
   const { DB } = c.env;
-  const { season_id, records, divisions } = await c.req.json();
+  const { season_id, records, divisions, seeds } = await c.req.json();
 
   // Save records
   if (records && Array.isArray(records)) {
@@ -212,6 +261,20 @@ router.post('/standings', async (c) => {
            VALUES (?, ?, ?) 
            ON CONFLICT(season_id, team_id) DO UPDATE SET predicted_position = ?, updated_at = datetime('now')`
         ).bind(season_id, teamId, index + 1, index + 1).run();
+      }
+    }
+  }
+
+  await DB.prepare('DELETE FROM predictions_seed_override WHERE season_id = ?').bind(season_id).run();
+  if (seeds && typeof seeds === 'object') {
+    for (const [conference, conferenceSeeds] of Object.entries(seeds) as [string, Seed[]][]) {
+      for (const seed of conferenceSeeds) {
+        if (seed.is_div_winner || seed.team_id === null || seed.seed < 5 || seed.seed > 7) continue;
+        await DB.prepare(
+          `INSERT INTO predictions_seed_override (season_id, conference, seed, team_id)
+           VALUES (?, ?, ?, ?)
+           ON CONFLICT(season_id, conference, seed) DO UPDATE SET team_id = ?, updated_at = datetime('now')`
+        ).bind(season_id, conference, seed.seed, seed.team_id, seed.team_id).run();
       }
     }
   }
@@ -345,8 +408,9 @@ router.get('/accuracy/:seasonId', async (c) => {
       COUNT(*) as total,
       SUM(CASE WHEN points_earned > 0 THEN 1 ELSE 0 END) as correct,
       SUM(COALESCE(points_earned, 0)) as points
-    FROM predictions_weekly 
-    WHERE season_id = ?
+    FROM predictions_weekly pw
+    JOIN games g ON pw.game_id = g.id
+    WHERE pw.season_id = ? AND g.status = 'final'
   `).bind(seasonId).first() as any;
 
   // Regular season (weeks 1-18)
@@ -356,7 +420,7 @@ router.get('/accuracy/:seasonId', async (c) => {
       SUM(CASE WHEN pw.points_earned > 0 THEN 1 ELSE 0 END) as correct
     FROM predictions_weekly pw
     JOIN games g ON pw.game_id = g.id
-    WHERE pw.season_id = ? AND g.week <= 18
+    WHERE pw.season_id = ? AND g.week <= 18 AND g.status = 'final'
   `).bind(seasonId).first() as any;
 
   // Postseason (weeks 19+)
@@ -366,7 +430,7 @@ router.get('/accuracy/:seasonId', async (c) => {
       SUM(CASE WHEN pw.points_earned > 0 THEN 1 ELSE 0 END) as correct
     FROM predictions_weekly pw
     JOIN games g ON pw.game_id = g.id
-    WHERE pw.season_id = ? AND g.week > 18
+    WHERE pw.season_id = ? AND g.week > 18 AND g.status = 'final'
   `).bind(seasonId).first() as any;
 
   const oTotal = overall?.total ?? 0;
@@ -408,7 +472,7 @@ router.get('/accuracy/:seasonId/week/:week', async (c) => {
       SUM(COALESCE(points_earned, 0)) as points
     FROM predictions_weekly pw
     JOIN games g ON pw.game_id = g.id
-    WHERE pw.season_id = ? AND g.week = ?
+    WHERE pw.season_id = ? AND g.week = ? AND g.status = 'final'
   `).bind(seasonId, week).first() as any;
 
   const total = result?.total ?? 0;
