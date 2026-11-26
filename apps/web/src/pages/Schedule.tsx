@@ -322,13 +322,13 @@ export function Schedule() {
         {/* Controls */}
         <div className="flex flex-wrap items-center gap-2.5">
           {/* Week Stepper */}
-          <div className="flex items-center bg-gridiron-surface border-2 border-gridiron-border">
+          <div className="flex items-center bg-gridiron-surface border-2 border-gridiron-border focus-within:border-nfl-blue transition-colors">
             <button
               type="button"
               onClick={() => setSelectedWeek(Math.max(1, week - 1))}
               disabled={week <= 1}
               aria-label="Previous week"
-              className="p-2.5 text-text-secondary hover:text-text-primary hover:bg-gridiron-surface-hover disabled:opacity-30 transition-colors"
+              className="p-2.5 text-text-secondary hover:text-text-primary hover:bg-gridiron-surface-hover disabled:opacity-30 transition-colors focus-visible:shadow-none"
             >
               <ChevronLeft size={18} />
             </button>
@@ -336,7 +336,7 @@ export function Schedule() {
               value={week}
               onChange={(e) => setSelectedWeek(Number(e.target.value))}
               aria-label="Select NFL week"
-              className="bg-transparent pl-3.5 pr-9 py-2 text-sm font-mono font-medium text-text-primary uppercase"
+              className="bg-transparent border-x border-gridiron-border/70 pl-3.5 pr-9 py-2 text-sm font-mono font-medium text-text-primary uppercase cursor-pointer focus-visible:shadow-none"
             >
               {Array.from({ length: 22 }, (_, i) => i + 1).map((w) => (
                 <option key={w} value={w} className="bg-gridiron-surface">
@@ -349,7 +349,7 @@ export function Schedule() {
               onClick={() => setSelectedWeek(Math.min(22, week + 1))}
               disabled={week >= 22}
               aria-label="Next week"
-              className="p-2.5 text-text-secondary hover:text-text-primary hover:bg-gridiron-surface-hover disabled:opacity-30 transition-colors"
+              className="p-2.5 text-text-secondary hover:text-text-primary hover:bg-gridiron-surface-hover disabled:opacity-30 transition-colors focus-visible:shadow-none"
             >
               <ChevronRight size={18} />
             </button>
