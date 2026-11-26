@@ -336,7 +336,7 @@ export function Schedule() {
               value={week}
               onChange={(e) => setSelectedWeek(Number(e.target.value))}
               aria-label="Select NFL week"
-              className="bg-transparent px-3 py-2 text-sm font-mono font-medium text-text-primary uppercase"
+              className="bg-transparent pl-3.5 pr-9 py-2 text-sm font-mono font-medium text-text-primary uppercase"
             >
               {Array.from({ length: 22 }, (_, i) => i + 1).map((w) => (
                 <option key={w} value={w} className="bg-gridiron-surface">
