@@ -50,9 +50,12 @@ function isDraftEqual(a?: PredictionDraft, b?: PredictionDraft): boolean {
   );
 }
 
+type GameFilter = 'all' | 'unpicked' | 'live' | 'final';
+
 export function Schedule() {
   const [games, setGames] = useState<Game[]>([]);
   const [selectedWeek, setSelectedWeek] = useState<number | null>(null);
+  const [filter, setFilter] = useState<GameFilter>('all');
   const [seasonId, setSeasonId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [savedGames, setSavedGames] = useState<Set<number>>(new Set());
@@ -127,6 +130,7 @@ export function Schedule() {
         setSavedGames(new Set(predictionsData.map((p) => p.game_id)));
         setWeekAccuracy(accuracyData);
         setSaveMessage(null);
+        setFilter('all');
       } catch {
         // API not ready
       } finally {
@@ -265,6 +269,25 @@ export function Schedule() {
     }
   }
 
+  const filterCounts = useMemo(() => {
+    let unpicked = 0;
+    let live = 0;
+    let finalCount = 0;
+    for (const g of games) {
+      if (!savedGames.has(g.id)) unpicked++;
+      if (g.status === 'in_progress') live++;
+      if (g.status === 'final') finalCount++;
+    }
+    return { all: games.length, unpicked, live, final: finalCount };
+  }, [games, savedGames]);
+
+  const filteredGames = useMemo(() => {
+    if (filter === 'unpicked') return games.filter((g) => !savedGames.has(g.id));
+    if (filter === 'live') return games.filter((g) => g.status === 'in_progress');
+    if (filter === 'final') return games.filter((g) => g.status === 'final');
+    return games;
+  }, [games, savedGames, filter]);
+
   const week = selectedWeek ?? 1;
 
   if (loading) {
@@ -401,14 +424,51 @@ export function Schedule() {
         </div>
       )}
 
+      {/* Game-Day Filter Pills */}
+      {games.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          {(
+            [
+              { key: 'all', label: 'All', count: filterCounts.all },
+              { key: 'unpicked', label: 'Unpicked', count: filterCounts.unpicked },
+              { key: 'live', label: 'Live', count: filterCounts.live },
+              { key: 'final', label: 'Final', count: filterCounts.final },
+            ] as const
+          ).map((pill) => {
+            const active = filter === pill.key;
+            const isLiveHot = pill.key === 'live' && pill.count > 0;
+            return (
+              <button
+                key={pill.key}
+                type="button"
+                onClick={() => setFilter(pill.key)}
+                className={`inline-flex items-center gap-2 px-3 py-1.5 text-xs font-mono uppercase tracking-wider border transition-colors ${
+                  active
+                    ? 'bg-gridiron-surface-hover border-nfl-blue text-text-primary'
+                    : 'bg-gridiron-surface border-gridiron-border text-text-secondary hover:text-text-primary'
+                }`}
+              >
+                {isLiveHot && <span className="w-1.5 h-1.5 bg-nfl-red animate-pulse" />}
+                <span>{pill.label}</span>
+                <span className="text-text-muted tabular-nums">({pill.count})</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {/* Games Grid */}
       {games.length === 0 ? (
         <div className="bg-gridiron-surface p-8 border-2 border-gridiron-border text-center text-text-secondary">
           No games for Week {week} yet. Import the schedule in Settings.
         </div>
+      ) : filteredGames.length === 0 ? (
+        <div className="bg-gridiron-surface p-8 border-2 border-gridiron-border text-center text-text-secondary">
+          No {filter} games in Week {week}.
+        </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {games.map((game) => (
+          {filteredGames.map((game) => (
             <GameCard
               key={game.id}
               game={game}

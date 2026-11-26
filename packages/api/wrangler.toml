@@ -10,3 +10,7 @@ migrations_dir = "../db/migrations"
 
 [vars]
 THE_SPORTS_DB_API_KEY = ""
+
+[triggers]
+# Auto-sync ESPN scores every 20 minutes on game days (UTC: Fri=TNF, Sun/Mon=Sun slate, Tue=MNF + morning sweep)
+crons = ["*/20 * * * 0,1,2,5"]

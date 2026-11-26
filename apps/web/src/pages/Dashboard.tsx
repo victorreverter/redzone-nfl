@@ -2,7 +2,19 @@ import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { api } from '../lib/api';
-import { Trophy, TrendingUp, Target, CalendarDays, BarChart3, ArrowRight, Calendar, Grid3X3, Award } from 'lucide-react';
+import {
+  Trophy,
+  TrendingUp,
+  Target,
+  CalendarDays,
+  BarChart3,
+  ArrowRight,
+  Calendar,
+  Grid3X3,
+  Award,
+  Flame,
+  Sparkles,
+} from 'lucide-react';
 import { MilestoneSlider } from '../components/MilestoneSlider';
 
 interface Season {
@@ -23,6 +35,23 @@ interface Accuracy {
   postseason: { correct: number; total: number; percentage: number };
 }
 
+interface WeeklyTrend {
+  week: number;
+  total: number;
+  correct: number;
+  exact: number;
+  points: number;
+  percentage: number;
+}
+
+interface Trends {
+  weekly: WeeklyTrend[];
+  exactScores: number;
+  bestWeek: WeeklyTrend | null;
+  currentStreak: number;
+  bestStreak: number;
+}
+
 interface WeekProgress {
   week: number;
   totalGames: number;
@@ -34,6 +63,8 @@ export function Dashboard() {
   const [seasons, setSeasons] = useState<Season[]>([]);
   const [score, setScore] = useState<Score>({ weekly: 0, playoff: 0, total: 0 });
   const [accuracy, setAccuracy] = useState<Accuracy | null>(null);
+  const [trends, setTrends] = useState<Trends | null>(null);
+  const [hoveredWeek, setHoveredWeek] = useState<WeeklyTrend | null>(null);
   const [weekProgress, setWeekProgress] = useState<WeekProgress | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -44,13 +75,15 @@ export function Dashboard() {
         setSeasons(data);
         if (data.length > 0) {
           const seasonId = data[0].id;
-          const [s, a, currentWeekRes] = await Promise.all([
+          const [s, a, t, currentWeekRes] = await Promise.all([
             api.get<Score>(`/predictions/score/${seasonId}`),
             api.get<Accuracy>(`/predictions/accuracy/${seasonId}`),
+            api.get<Trends>(`/predictions/trends/${seasonId}`).catch(() => null),
             api.get<{ week: number }>(`/games/current-week/${seasonId}`),
           ]);
           setScore(s);
           setAccuracy(a);
+          setTrends(t);
 
           const [weekGames, weekPreds] = await Promise.all([
             api.get<Array<{ id: number; status: string }>>(`/games?season_id=${seasonId}&week=${currentWeekRes.week}`),
@@ -111,6 +144,8 @@ export function Dashboard() {
   }
 
   const remainingPicks = weekProgress ? Math.max(0, weekProgress.totalGames - weekProgress.pickedGames) : 0;
+  const trendByWeek = new Map((trends?.weekly ?? []).map((w) => [w.week, w]));
+  const activeTrend = hoveredWeek ?? trends?.bestWeek ?? null;
 
   return (
     <div className="space-y-6">
@@ -195,6 +230,129 @@ export function Dashboard() {
           delay={0.2}
         />
       </div>
+
+      {/* Season Performance: Week-by-Week Accuracy Chart & Streaks */}
+      {trends && (
+        <section className="bg-gridiron-surface p-5 md:p-6 border-2 border-gridiron-border neumorphic space-y-5">
+          <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-2">
+            <div>
+              <h2 className="text-xl md:text-2xl font-display font-bold text-text-primary tracking-tight">
+                Season Performance
+              </h2>
+              <p className="text-xs text-text-muted mt-0.5">
+                Weekly pick accuracy across the 18-week regular season
+              </p>
+            </div>
+            {activeTrend ? (
+              <div className="inline-flex items-center gap-2 bg-gridiron-bg border border-gridiron-border px-3 py-1.5 text-xs font-mono tabular-nums">
+                <span className="text-text-muted uppercase">
+                  {hoveredWeek ? `Week ${activeTrend.week}` : `Best • W${activeTrend.week}`}
+                </span>
+                <span className="text-text-primary font-medium">{activeTrend.percentage}%</span>
+                <span className="text-text-muted">
+                  ({activeTrend.correct}/{activeTrend.total} • +{activeTrend.points} pts)
+                </span>
+              </div>
+            ) : (
+              <span className="text-xs font-mono text-text-muted uppercase tracking-wider">
+                Awaiting final games
+              </span>
+            )}
+          </div>
+
+          {/* 18-Week Bar Chart */}
+          <div className="grid grid-cols-9 sm:grid-cols-[repeat(18,minmax(0,1fr))] gap-1.5 md:gap-2 items-end h-32 pt-4 pb-1 border-b border-gridiron-border/70">
+            {Array.from({ length: 18 }, (_, i) => i + 1).map((w) => {
+              const item = trendByWeek.get(w);
+              const barColor = !item
+                ? 'bg-gridiron-bg border border-dashed border-gridiron-border/70'
+                : item.percentage >= 70
+                  ? 'bg-nfl-green'
+                  : item.percentage >= 40
+                    ? 'bg-nfl-yellow'
+                    : 'bg-nfl-red';
+              const heightPct = item ? Math.max(10, item.percentage) : 14;
+
+              return (
+                <button
+                  key={w}
+                  type="button"
+                  onMouseEnter={() => item && setHoveredWeek(item)}
+                  onMouseLeave={() => setHoveredWeek(null)}
+                  onFocus={() => item && setHoveredWeek(item)}
+                  onBlur={() => setHoveredWeek(null)}
+                  aria-label={
+                    item
+                      ? `Week ${w}: ${item.correct} of ${item.total} (${item.percentage}%)`
+                      : `Week ${w}: no graded picks`
+                  }
+                  className="group flex flex-col items-center justify-end h-full gap-1.5 focus-visible:ring-1"
+                >
+                  <div className="w-full flex-1 flex items-end">
+                    <div
+                      className={`w-full transition-all ${barColor} ${
+                        item ? 'opacity-85 group-hover:opacity-100' : 'opacity-60'
+                      }`}
+                      style={{ height: `${heightPct}%` }}
+                    />
+                  </div>
+                  <span
+                    className={`text-[10px] font-mono tabular-nums ${
+                      weekProgress?.week === w
+                        ? 'text-nfl-red font-medium'
+                        : item
+                          ? 'text-text-secondary'
+                          : 'text-text-muted/60'
+                    }`}
+                  >
+                    {w}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Highlights Strip */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="bg-gridiron-bg/80 border border-gridiron-border p-3">
+              <p className="text-[11px] font-mono uppercase tracking-wider text-text-muted flex items-center gap-1.5">
+                <Sparkles size={12} className="text-nfl-yellow" />
+                Exact Scores
+              </p>
+              <p className="text-xl font-mono font-medium text-text-primary tabular-nums mt-1">
+                {trends.exactScores}
+              </p>
+            </div>
+            <div className="bg-gridiron-bg/80 border border-gridiron-border p-3">
+              <p className="text-[11px] font-mono uppercase tracking-wider text-text-muted flex items-center gap-1.5">
+                <Trophy size={12} className="text-nfl-green" />
+                Best Week
+              </p>
+              <p className="text-xl font-mono font-medium text-text-primary tabular-nums mt-1">
+                {trends.bestWeek ? `W${trends.bestWeek.week} • ${trends.bestWeek.percentage}%` : '—'}
+              </p>
+            </div>
+            <div className="bg-gridiron-bg/80 border border-gridiron-border p-3">
+              <p className="text-[11px] font-mono uppercase tracking-wider text-text-muted flex items-center gap-1.5">
+                <Flame size={12} className="text-nfl-red" />
+                Current Streak
+              </p>
+              <p className="text-xl font-mono font-medium text-text-primary tabular-nums mt-1">
+                {trends.currentStreak}
+              </p>
+            </div>
+            <div className="bg-gridiron-bg/80 border border-gridiron-border p-3">
+              <p className="text-[11px] font-mono uppercase tracking-wider text-text-muted flex items-center gap-1.5">
+                <TrendingUp size={12} className="text-nfl-blue" />
+                Best Streak
+              </p>
+              <p className="text-xl font-mono font-medium text-text-primary tabular-nums mt-1">
+                {trends.bestStreak}
+              </p>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Quick Actions */}
       <div className="bg-gridiron-surface p-5 md:p-6 border-2 border-gridiron-border neumorphic">

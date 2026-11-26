@@ -135,6 +135,155 @@ function computePredictionPoints(
   return points;
 }
 
+export interface EspnSyncResult {
+  ok: true;
+  updated: number;
+  totalGames: number;
+  seasonYear: number;
+}
+
+export async function syncSeasonFromEspn(
+  DB: D1Database,
+  seasonId: number | string,
+  parsedWeek: number | null = null
+): Promise<EspnSyncResult | null> {
+  const season = await DB.prepare('SELECT year FROM seasons WHERE id = ?').bind(seasonId).first() as { year: number } | null;
+  if (!season) return null;
+
+  const weeks = parsedWeek ? [parsedWeek] : Array.from({ length: 18 }, (_, i) => i + 1);
+
+  // Load teams, games, and weekly predictions in a single D1 batch (1 subrequest)
+  const gamesQuery = parsedWeek
+    ? DB.prepare('SELECT id, week, home_team_id, away_team_id, home_score, away_score, status FROM games WHERE season_id = ? AND week = ?').bind(seasonId, parsedWeek)
+    : DB.prepare('SELECT id, week, home_team_id, away_team_id, home_score, away_score, status FROM games WHERE season_id = ?').bind(seasonId);
+
+  const [teamsRes, gamesRes, predictionsRes] = await DB.batch([
+    DB.prepare('SELECT id, abbreviation FROM teams'),
+    gamesQuery,
+    DB.prepare('SELECT id, game_id, predicted_winner_team_id, predicted_home_score, predicted_away_score, points_earned FROM predictions_weekly WHERE season_id = ?').bind(seasonId),
+  ]);
+
+  const teamMap = new Map<string, number>();
+  for (const t of teamsRes.results as Array<{ id: number; abbreviation: string }>) {
+    teamMap.set(t.abbreviation.toLowerCase(), t.id);
+  }
+  // Alias: ESPN uses WSH but DB uses WAS
+  const wasId = teamMap.get('was');
+  if (wasId) teamMap.set('wsh', wasId);
+
+  const gameMap = new Map<string, GameRow>();
+  for (const g of gamesRes.results as GameRow[]) {
+    gameMap.set(`${g.week}:${g.home_team_id}:${g.away_team_id}`, g);
+  }
+
+  const predictionByGameId = new Map<number, PredictionRow>();
+  for (const p of predictionsRes.results as PredictionRow[]) {
+    predictionByGameId.set(p.game_id, p);
+  }
+
+  const fetchHeaders = {
+    'User-Agent': 'curl/8.7.1',
+    'Accept': '*/*',
+  };
+
+  // Fetch ESPN scoreboards in chunks of 6 to stay within Cloudflare's concurrent connection limit
+  const weekResults: Array<{ week: number; events: any[] }> = [];
+  for (let i = 0; i < weeks.length; i += 6) {
+    const chunk = weeks.slice(i, i + 6);
+    const chunkData = await Promise.all(
+      chunk.map(async (week) => {
+        const url = `https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?seasontype=2&year=${season.year}&week=${week}`;
+        const res = await fetch(url, { headers: fetchHeaders });
+        if (!res.ok) {
+          console.error(`ESPN week ${week} fetch failed: ${res.status} ${res.statusText}`);
+          return { week, events: [] };
+        }
+        const data = await res.json() as { events?: any[] };
+        return { week, events: data.events || [] };
+      })
+    );
+    weekResults.push(...chunkData);
+  }
+
+  const updateGameStmt = DB.prepare(
+    'UPDATE games SET home_score = ?, away_score = ?, status = ?, updated_at = datetime(\'now\') WHERE id = ?'
+  );
+  const updatePredictionStmt = DB.prepare(
+    'UPDATE predictions_weekly SET points_earned = ?, updated_at = datetime(\'now\') WHERE id = ?'
+  );
+
+  const writeStatements: D1PreparedStatement[] = [];
+  let updated = 0;
+  let totalGames = 0;
+
+  for (const { week, events } of weekResults) {
+    totalGames += events.length;
+
+    for (const event of events) {
+      const competition = event.competitions?.[0];
+      if (!competition) continue;
+
+      const homeTeam = competition.competitors?.find((comp: any) => comp.homeAway === 'home');
+      const awayTeam = competition.competitors?.find((comp: any) => comp.homeAway === 'away');
+      if (!homeTeam || !awayTeam) continue;
+
+      const homeAbbr = homeTeam.team?.abbreviation?.toLowerCase();
+      const awayAbbr = awayTeam.team?.abbreviation?.toLowerCase();
+
+      const homeTeamId = homeAbbr ? teamMap.get(homeAbbr) : undefined;
+      const awayTeamId = awayAbbr ? teamMap.get(awayAbbr) : undefined;
+
+      if (!homeTeamId || !awayTeamId) {
+        console.log(`Skipping ESPN event ${event.name}: unknown abbreviation ${homeAbbr}/${awayAbbr}`);
+        continue;
+      }
+
+      const game = gameMap.get(`${week}:${homeTeamId}:${awayTeamId}`);
+      if (!game) continue;
+
+      const status = competition.status?.type?.name || 'STATUS_SCHEDULED';
+      const homeScore = parseInt(homeTeam.score, 10) || 0;
+      const awayScore = parseInt(awayTeam.score, 10) || 0;
+      const gameStatus =
+        status === 'STATUS_FINAL'
+          ? 'final'
+          : status === 'STATUS_IN_PROGRESS'
+            ? 'in_progress'
+            : 'scheduled';
+
+      const gameChanged =
+        game.home_score !== homeScore ||
+        game.away_score !== awayScore ||
+        game.status !== gameStatus;
+
+      if (gameChanged) {
+        writeStatements.push(updateGameStmt.bind(homeScore, awayScore, gameStatus, game.id));
+        updated++;
+      }
+
+      if (gameStatus === 'final') {
+        const prediction = predictionByGameId.get(game.id);
+        if (prediction) {
+          const points = computePredictionPoints(
+            prediction,
+            game.home_team_id,
+            game.away_team_id,
+            homeScore,
+            awayScore
+          );
+          if (prediction.points_earned !== points) {
+            writeStatements.push(updatePredictionStmt.bind(points, prediction.id));
+          }
+        }
+      }
+    }
+  }
+
+  await runBatched(DB, writeStatements);
+
+  return { ok: true, updated, totalGames, seasonYear: season.year };
+}
+
 // ESPN API integration for live scores
 router.post('/sync/:seasonId', async (c) => {
   const { DB } = c.env;
@@ -146,142 +295,10 @@ router.post('/sync/:seasonId', async (c) => {
     return c.json({ error: 'Invalid week parameter (expected 1-18)' }, 400);
   }
 
-  const season = await DB.prepare('SELECT year FROM seasons WHERE id = ?').bind(seasonId).first() as { year: number } | null;
-  if (!season) return c.json({ error: 'Season not found' }, 404);
-
   try {
-    const weeks = parsedWeek ? [parsedWeek] : Array.from({ length: 18 }, (_, i) => i + 1);
-
-    // Load teams, games, and weekly predictions in a single D1 batch (1 subrequest)
-    const gamesQuery = parsedWeek
-      ? DB.prepare('SELECT id, week, home_team_id, away_team_id, home_score, away_score, status FROM games WHERE season_id = ? AND week = ?').bind(seasonId, parsedWeek)
-      : DB.prepare('SELECT id, week, home_team_id, away_team_id, home_score, away_score, status FROM games WHERE season_id = ?').bind(seasonId);
-
-    const [teamsRes, gamesRes, predictionsRes] = await DB.batch([
-      DB.prepare('SELECT id, abbreviation FROM teams'),
-      gamesQuery,
-      DB.prepare('SELECT id, game_id, predicted_winner_team_id, predicted_home_score, predicted_away_score, points_earned FROM predictions_weekly WHERE season_id = ?').bind(seasonId),
-    ]);
-
-    const teamMap = new Map<string, number>();
-    for (const t of teamsRes.results as Array<{ id: number; abbreviation: string }>) {
-      teamMap.set(t.abbreviation.toLowerCase(), t.id);
-    }
-    // Alias: ESPN uses WSH but DB uses WAS
-    const wasId = teamMap.get('was');
-    if (wasId) teamMap.set('wsh', wasId);
-
-    const gameMap = new Map<string, GameRow>();
-    for (const g of gamesRes.results as GameRow[]) {
-      gameMap.set(`${g.week}:${g.home_team_id}:${g.away_team_id}`, g);
-    }
-
-    const predictionByGameId = new Map<number, PredictionRow>();
-    for (const p of predictionsRes.results as PredictionRow[]) {
-      predictionByGameId.set(p.game_id, p);
-    }
-
-    const fetchHeaders = {
-      'User-Agent': 'curl/8.7.1',
-      'Accept': '*/*',
-    };
-
-    // Fetch ESPN scoreboards in chunks of 6 to stay within Cloudflare's concurrent connection limit
-    const weekResults: Array<{ week: number; events: any[] }> = [];
-    for (let i = 0; i < weeks.length; i += 6) {
-      const chunk = weeks.slice(i, i + 6);
-      const chunkData = await Promise.all(
-        chunk.map(async (week) => {
-          const url = `https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?seasontype=2&year=${season.year}&week=${week}`;
-          const res = await fetch(url, { headers: fetchHeaders });
-          if (!res.ok) {
-            console.error(`ESPN week ${week} fetch failed: ${res.status} ${res.statusText}`);
-            return { week, events: [] };
-          }
-          const data = await res.json() as { events?: any[] };
-          return { week, events: data.events || [] };
-        })
-      );
-      weekResults.push(...chunkData);
-    }
-
-    const updateGameStmt = DB.prepare(
-      'UPDATE games SET home_score = ?, away_score = ?, status = ?, updated_at = datetime(\'now\') WHERE id = ?'
-    );
-    const updatePredictionStmt = DB.prepare(
-      'UPDATE predictions_weekly SET points_earned = ?, updated_at = datetime(\'now\') WHERE id = ?'
-    );
-
-    const writeStatements: D1PreparedStatement[] = [];
-    let updated = 0;
-    let totalGames = 0;
-
-    for (const { week, events } of weekResults) {
-      totalGames += events.length;
-
-      for (const event of events) {
-        const competition = event.competitions?.[0];
-        if (!competition) continue;
-
-        const homeTeam = competition.competitors?.find((comp: any) => comp.homeAway === 'home');
-        const awayTeam = competition.competitors?.find((comp: any) => comp.homeAway === 'away');
-        if (!homeTeam || !awayTeam) continue;
-
-        const homeAbbr = homeTeam.team?.abbreviation?.toLowerCase();
-        const awayAbbr = awayTeam.team?.abbreviation?.toLowerCase();
-
-        const homeTeamId = homeAbbr ? teamMap.get(homeAbbr) : undefined;
-        const awayTeamId = awayAbbr ? teamMap.get(awayAbbr) : undefined;
-
-        if (!homeTeamId || !awayTeamId) {
-          console.log(`Skipping ESPN event ${event.name}: unknown abbreviation ${homeAbbr}/${awayAbbr}`);
-          continue;
-        }
-
-        const game = gameMap.get(`${week}:${homeTeamId}:${awayTeamId}`);
-        if (!game) continue;
-
-        const status = competition.status?.type?.name || 'STATUS_SCHEDULED';
-        const homeScore = parseInt(homeTeam.score, 10) || 0;
-        const awayScore = parseInt(awayTeam.score, 10) || 0;
-        const gameStatus =
-          status === 'STATUS_FINAL'
-            ? 'final'
-            : status === 'STATUS_IN_PROGRESS'
-              ? 'in_progress'
-              : 'scheduled';
-
-        const gameChanged =
-          game.home_score !== homeScore ||
-          game.away_score !== awayScore ||
-          game.status !== gameStatus;
-
-        if (gameChanged) {
-          writeStatements.push(updateGameStmt.bind(homeScore, awayScore, gameStatus, game.id));
-          updated++;
-        }
-
-        if (gameStatus === 'final') {
-          const prediction = predictionByGameId.get(game.id);
-          if (prediction) {
-            const points = computePredictionPoints(
-              prediction,
-              game.home_team_id,
-              game.away_team_id,
-              homeScore,
-              awayScore
-            );
-            if (prediction.points_earned !== points) {
-              writeStatements.push(updatePredictionStmt.bind(points, prediction.id));
-            }
-          }
-        }
-      }
-    }
-
-    await runBatched(DB, writeStatements);
-
-    return c.json({ ok: true, updated, totalGames, seasonYear: season.year });
+    const result = await syncSeasonFromEspn(DB, seasonId, parsedWeek);
+    if (!result) return c.json({ error: 'Season not found' }, 404);
+    return c.json(result);
   } catch (e) {
     console.error('ESPN sync error:', e);
     return c.json({ error: `Failed to sync: ${(e as Error).message}` }, 500);

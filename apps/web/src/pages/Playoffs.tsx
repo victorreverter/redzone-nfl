@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '../lib/api';
-import { Check, Trophy } from 'lucide-react';
+import { Check, Trophy, Sparkles, ArrowRight } from 'lucide-react';
 
 interface PlayoffPred {
   id: number;
@@ -21,6 +21,15 @@ interface Team {
   logo_url?: string | null;
 }
 
+interface Seed {
+  seed: number;
+  team_id: number | null;
+}
+
+interface StandingsResponse {
+  seeds: Record<string, Seed[]>;
+}
+
 interface BracketRound {
   key: string;
   label: string;
@@ -36,12 +45,37 @@ const BRACKET_ROUNDS: BracketRound[] = [
   { key: 'champion', label: 'Champion', slots: 1, hint: 'Lombardi winner' },
 ];
 
+// Map each round/slot to the next round slot when clicking "Advance"
+function getAdvanceTarget(roundKey: string, slot: number): { round: string; slot: number; label: string } | null {
+  if (roundKey === 'wild_card') {
+    const matchupIdx = Math.floor((slot - 1) / 2); // 0..2 = AFC, 3..5 = NFC
+    // AFC #1 sits in Divisional slot 1; AFC WC winners fill Divisional slots 2, 3, 4
+    // NFC #1 sits in Divisional slot 5; NFC WC winners fill Divisional slots 6, 7, 8
+    const targetSlot = matchupIdx < 3 ? matchupIdx + 2 : matchupIdx + 3;
+    return { round: 'divisional', slot: targetSlot, label: 'Divisional' };
+  }
+  if (roundKey === 'divisional') {
+    const matchupIdx = Math.floor((slot - 1) / 2); // 0..3
+    return { round: 'conference', slot: matchupIdx + 1, label: 'Conference' };
+  }
+  if (roundKey === 'conference') {
+    const matchupIdx = Math.floor((slot - 1) / 2); // 0..1
+    return { round: 'super_bowl', slot: matchupIdx + 1, label: 'Super Bowl' };
+  }
+  if (roundKey === 'super_bowl') {
+    return { round: 'champion', slot: 1, label: 'Champion' };
+  }
+  return null;
+}
+
 export function Playoffs() {
   const [predictions, setPredictions] = useState<PlayoffPred[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [seasonId, setSeasonId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [savingSlot, setSavingSlot] = useState<string | null>(null);
+  const [filling, setFilling] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -73,7 +107,7 @@ export function Playoffs() {
   }, [predictions]);
 
   async function savePrediction(round: string, slot: number, teamId: number) {
-    if (!seasonId || !teamId) return;
+    if (!seasonId) return;
     const key = `${round}:${slot}`;
     setSavingSlot(key);
     try {
@@ -81,12 +115,57 @@ export function Playoffs() {
         season_id: seasonId,
         round,
         slot,
-        team_id: teamId,
+        team_id: teamId || null,
       });
       const updated = await api.get<PlayoffPred[]>(`/predictions/playoff/${seasonId}`);
       setPredictions(updated);
     } finally {
       setSavingSlot(null);
+    }
+  }
+
+  async function fillFromStandings() {
+    if (!seasonId) return;
+    setFilling(true);
+    setStatusMessage(null);
+    try {
+      const standings = await api.get<StandingsResponse>(`/predictions/standings/${seasonId}`);
+      const afc = new Map((standings.seeds.AFC || []).map((s) => [s.seed, s.team_id]));
+      const nfc = new Map((standings.seeds.NFC || []).map((s) => [s.seed, s.team_id]));
+
+      const entries: Array<{ round: string; slot: number; team_id: number | null }> = [
+        // AFC Wild Card: #2 vs #7, #3 vs #6, #4 vs #5
+        { round: 'wild_card', slot: 1, team_id: afc.get(2) ?? null },
+        { round: 'wild_card', slot: 2, team_id: afc.get(7) ?? null },
+        { round: 'wild_card', slot: 3, team_id: afc.get(3) ?? null },
+        { round: 'wild_card', slot: 4, team_id: afc.get(6) ?? null },
+        { round: 'wild_card', slot: 5, team_id: afc.get(4) ?? null },
+        { round: 'wild_card', slot: 6, team_id: afc.get(5) ?? null },
+        // NFC Wild Card: #2 vs #7, #3 vs #6, #4 vs #5
+        { round: 'wild_card', slot: 7, team_id: nfc.get(2) ?? null },
+        { round: 'wild_card', slot: 8, team_id: nfc.get(7) ?? null },
+        { round: 'wild_card', slot: 9, team_id: nfc.get(3) ?? null },
+        { round: 'wild_card', slot: 10, team_id: nfc.get(6) ?? null },
+        { round: 'wild_card', slot: 11, team_id: nfc.get(4) ?? null },
+        { round: 'wild_card', slot: 12, team_id: nfc.get(5) ?? null },
+        // #1 Seeds (First-Round Bye) enter Divisional Round
+        { round: 'divisional', slot: 1, team_id: afc.get(1) ?? null },
+        { round: 'divisional', slot: 5, team_id: nfc.get(1) ?? null },
+      ].filter((e) => e.team_id !== null);
+
+      if (entries.length === 0) {
+        setStatusMessage('No seeds found in Standings yet. Set team records/seeds in Standings first.');
+        return;
+      }
+
+      await api.post('/predictions/playoff/batch', { season_id: seasonId, entries });
+      const updated = await api.get<PlayoffPred[]>(`/predictions/playoff/${seasonId}`);
+      setPredictions(updated);
+      setStatusMessage(`Loaded ${entries.length} playoff seeds (Wild Card + #1 Byes) from Standings.`);
+    } catch (e) {
+      setStatusMessage(`Failed to load seeds: ${e instanceof Error ? e.message : 'Unknown error'}`);
+    } finally {
+      setFilling(false);
     }
   }
 
@@ -103,7 +182,7 @@ export function Playoffs() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
           <p className="text-xs font-mono uppercase tracking-widest text-nfl-yellow mb-1">
             Postseason Tournament Bracket
@@ -112,13 +191,36 @@ export function Playoffs() {
             Playoff Simulator
           </h1>
         </div>
-        <div className="inline-flex items-center gap-2.5 bg-gridiron-surface border-2 border-gridiron-border px-4 py-2.5 text-sm font-mono text-text-secondary tabular-nums self-start sm:self-auto neumorphic">
-          <Trophy size={16} className="text-nfl-yellow" />
-          <span>
-            <strong className="text-text-primary">{filledSlots}</strong>/{totalSlots} slots filled
-          </span>
+        <div className="flex flex-wrap items-center gap-2.5">
+          <button
+            type="button"
+            onClick={fillFromStandings}
+            disabled={filling || teams.length === 0}
+            className="inline-flex items-center gap-2 bg-nfl-blue hover:opacity-90 disabled:opacity-50 text-white px-4 py-2.5 text-xs sm:text-sm font-semibold uppercase tracking-wider transition-opacity"
+          >
+            <Sparkles size={15} />
+            {filling ? 'Loading Seeds...' : 'Fill from Standings'}
+          </button>
+          <div className="inline-flex items-center gap-2 bg-gridiron-surface border-2 border-gridiron-border px-4 py-2 text-sm font-mono text-text-secondary tabular-nums neumorphic">
+            <Trophy size={16} className="text-nfl-yellow" />
+            <span>
+              <strong className="text-text-primary">{filledSlots}</strong>/{totalSlots}
+            </span>
+          </div>
         </div>
       </div>
+
+      {statusMessage && (
+        <div
+          className={`px-4 py-3 border-l-4 bg-gridiron-surface text-sm font-medium ${
+            statusMessage.startsWith('Loaded')
+              ? 'border-nfl-green text-nfl-green'
+              : 'border-nfl-yellow text-nfl-yellow'
+          }`}
+        >
+          {statusMessage}
+        </div>
+      )}
 
       {teams.length === 0 && (
         <div className="bg-gridiron-surface p-4 border-2 border-gridiron-border text-sm text-text-secondary neumorphic">
@@ -190,11 +292,7 @@ function BracketRoundSection({
         <p className="text-xs font-mono text-text-muted uppercase tracking-wider">{round.hint}</p>
       </div>
 
-      <div
-        className={`flex flex-col gap-3.5 ${
-          desktop ? 'flex-1 justify-around' : ''
-        }`}
-      >
+      <div className={`flex flex-col gap-3.5 ${desktop ? 'flex-1 justify-around' : ''}`}>
         {round.key === 'champion' ? (
           <div className="border-2 border-nfl-yellow/50 bg-nfl-yellow/5 p-3">
             <div className="flex items-center gap-2 mb-2.5 text-xs font-mono uppercase tracking-wider text-nfl-yellow">
@@ -324,6 +422,7 @@ function BracketSlot({
 }) {
   const selectedTeam = teams.find((team) => team.id === prediction?.team_id);
   const isFilled = Boolean(selectedTeam);
+  const advanceTarget = !champion ? getAdvanceTarget(roundKey, slot) : null;
 
   return (
     <div
@@ -331,7 +430,7 @@ function BracketSlot({
         isFilled ? 'border-nfl-green' : 'border-gridiron-border'
       }`}
     >
-      <div className="mb-2 flex items-center gap-2.5 min-h-9">
+      <div className="mb-2 flex items-center gap-2 min-h-9">
         {selectedTeam?.logo_url ? (
           <img
             src={selectedTeam.logo_url}
@@ -349,6 +448,17 @@ function BracketSlot({
           </p>
           {saving && <p className="text-[11px] font-mono text-nfl-blue">Saving...</p>}
         </div>
+        {selectedTeam && advanceTarget && (
+          <button
+            type="button"
+            onClick={() => onSave(advanceTarget.round, advanceTarget.slot, selectedTeam.id)}
+            title={`Advance ${selectedTeam.name} to ${advanceTarget.label}`}
+            className="inline-flex items-center gap-0.5 bg-gridiron-bg hover:bg-nfl-blue border border-gridiron-border hover:border-nfl-blue px-1.5 py-1 text-[10px] font-mono text-text-secondary hover:text-white uppercase transition-colors flex-shrink-0"
+          >
+            <span>Next</span>
+            <ArrowRight size={11} />
+          </button>
+        )}
       </div>
       <select
         value={prediction?.team_id ?? ''}

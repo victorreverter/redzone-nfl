@@ -487,4 +487,121 @@ router.get('/accuracy/:seasonId/week/:week', async (c) => {
   });
 });
 
+router.post('/playoff/batch', async (c) => {
+  const { DB } = c.env;
+  const { season_id, entries } = await c.req.json() as {
+    season_id: number;
+    entries: Array<{ round: string; slot: number; team_id: number | null; predicted_winner_team_id?: number | null }>;
+  };
+
+  if (!season_id || !Array.isArray(entries) || entries.length === 0) {
+    return c.json({ error: 'Invalid payload' }, 400);
+  }
+
+  const stmt = DB.prepare(
+    `INSERT INTO predictions_playoff (season_id, round, slot, team_id, predicted_winner_team_id)
+     VALUES (?, ?, ?, ?, ?)
+     ON CONFLICT(season_id, round, slot) DO UPDATE SET
+       team_id = ?, predicted_winner_team_id = ?, updated_at = datetime('now')`
+  );
+
+  const batch = entries.map((e) =>
+    stmt.bind(
+      season_id,
+      e.round,
+      e.slot,
+      e.team_id || null,
+      e.predicted_winner_team_id || null,
+      e.team_id || null,
+      e.predicted_winner_team_id || null
+    )
+  );
+
+  await DB.batch(batch);
+  return c.json({ ok: true, count: entries.length });
+});
+
+router.get('/trends/:seasonId', async (c) => {
+  const { DB } = c.env;
+  const seasonId = c.req.param('seasonId');
+
+  const [weeklyRes, picksRes] = await DB.batch([
+    DB.prepare(`
+      SELECT
+        g.week,
+        COUNT(*) as total,
+        SUM(CASE WHEN pw.points_earned > 0 THEN 1 ELSE 0 END) as correct,
+        SUM(CASE WHEN pw.points_earned >= 5 THEN 1 ELSE 0 END) as exact,
+        SUM(COALESCE(pw.points_earned, 0)) as points
+      FROM predictions_weekly pw
+      JOIN games g ON pw.game_id = g.id
+      WHERE pw.season_id = ? AND g.status = 'final'
+      GROUP BY g.week
+      ORDER BY g.week ASC
+    `).bind(seasonId),
+    DB.prepare(`
+      SELECT pw.points_earned
+      FROM predictions_weekly pw
+      JOIN games g ON pw.game_id = g.id
+      WHERE pw.season_id = ? AND g.status = 'final'
+      ORDER BY g.week ASC, g.game_time ASC, g.id ASC
+    `).bind(seasonId),
+  ]);
+
+  const weekly = (weeklyRes.results as Array<{
+    week: number;
+    total: number;
+    correct: number;
+    exact: number;
+    points: number;
+  }>).map((row) => ({
+    week: row.week,
+    total: row.total,
+    correct: row.correct,
+    exact: row.exact,
+    points: row.points,
+    percentage: row.total > 0 ? Math.round((row.correct / row.total) * 1000) / 10 : 0,
+  }));
+
+  const exactScores = weekly.reduce((sum, w) => sum + w.exact, 0);
+
+  let bestWeek: (typeof weekly)[number] | null = null;
+  for (const w of weekly) {
+    if (w.total === 0) continue;
+    if (
+      !bestWeek ||
+      w.percentage > bestWeek.percentage ||
+      (w.percentage === bestWeek.percentage && w.points > bestWeek.points)
+    ) {
+      bestWeek = w;
+    }
+  }
+
+  const picks = picksRes.results as Array<{ points_earned: number }>;
+  let bestStreak = 0;
+  let running = 0;
+  for (const p of picks) {
+    if (p.points_earned > 0) {
+      running++;
+      if (running > bestStreak) bestStreak = running;
+    } else {
+      running = 0;
+    }
+  }
+
+  let currentStreak = 0;
+  for (let i = picks.length - 1; i >= 0; i--) {
+    if (picks[i].points_earned > 0) currentStreak++;
+    else break;
+  }
+
+  return c.json({
+    weekly,
+    exactScores,
+    bestWeek,
+    currentStreak,
+    bestStreak,
+  });
+});
+
 export { router as predictionsRouter };
