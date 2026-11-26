@@ -13,4 +13,4 @@ THE_SPORTS_DB_API_KEY = ""
 
 [triggers]
 # Auto-sync ESPN scores every 20 minutes on game days (UTC: Fri=TNF, Sun/Mon=Sun slate, Tue=MNF + morning sweep)
-crons = ["*/20 * * * 0,1,2,5"]
+crons = ["*/20 * * * SUN,MON,TUE,FRI"]
