@@ -1,8 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
-import { motion } from 'framer-motion';
 import { api } from '../lib/api';
 import { teamDisplayName } from '../lib/utils';
-import { GripVertical, Trophy } from 'lucide-react';
+import { GripVertical, Trophy, Save, Check } from 'lucide-react';
 
 interface TeamRecord {
   team_id: number;
@@ -50,12 +49,11 @@ export function Standings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Drag state
   const dragItem = useRef<{ divKey: string; index: number } | null>(null);
   const dragOverItem = useRef<{ divKey: string; index: number } | null>(null);
 
-  // Local division orders for 0-0 teams (drag order)
   const [divisionOrders, setDivisionOrders] = useState<Record<string, number[]>>({});
 
   useEffect(() => {
@@ -72,10 +70,9 @@ export function Standings() {
         setData(standingsData);
         setTeams(teamsData);
 
-        // Initialize division orders from loaded data
         const orders: Record<string, number[]> = {};
         for (const [key, divTeams] of Object.entries(standingsData.divisions)) {
-          orders[key] = divTeams.map(t => t.team_id);
+          orders[key] = divTeams.map((t) => t.team_id);
         }
         setDivisionOrders(orders);
       } catch {
@@ -111,7 +108,6 @@ export function Standings() {
     dragOverItem.current = null;
   }
 
-  // Touch drag support
   const touchStartY = useRef<number>(0);
   const touchCurrentItem = useRef<{ divKey: string; index: number } | null>(null);
 
@@ -144,97 +140,120 @@ export function Standings() {
   async function handleSaveAll() {
     if (!seasonId || !data) return;
     setSaving(true);
+    setErrorMessage(null);
 
-    // Collect records from current division data
-    const records: { team_id: number; wins: number; losses: number }[] = [];
-    for (const [, divTeams] of Object.entries(data.divisions)) {
-      for (const t of divTeams) {
-        if (t.wins > 0 || t.losses > 0) {
-          records.push({ team_id: t.team_id, wins: t.wins, losses: t.losses });
+    try {
+      const records: { team_id: number; wins: number; losses: number }[] = [];
+      for (const [, divTeams] of Object.entries(data.divisions)) {
+        for (const t of divTeams) {
+          if (t.wins > 0 || t.losses > 0) {
+            records.push({ team_id: t.team_id, wins: t.wins, losses: t.losses });
+          }
         }
       }
-    }
 
-    // Collect division orders for 0-0 teams
-    const divOrders: Record<string, number[]> = {};
-    for (const [key, teamIds] of Object.entries(divisionOrders)) {
-      const divTeams = data.divisions[key] || [];
-      const zeroTeams = divTeams.filter(t => t.wins === 0 && t.losses === 0);
-      if (zeroTeams.length > 0) {
-        // Use drag order for 0-0 teams
-        const zeroIds = teamIds.filter(id => zeroTeams.some(t => t.team_id === id));
-        divOrders[key] = zeroIds;
+      const divOrders: Record<string, number[]> = {};
+      for (const [key, teamIds] of Object.entries(divisionOrders)) {
+        const divTeams = data.divisions[key] || [];
+        const zeroTeams = divTeams.filter((t) => t.wins === 0 && t.losses === 0);
+        if (zeroTeams.length > 0) {
+          const zeroIds = teamIds.filter((id) => zeroTeams.some((t) => t.team_id === id));
+          divOrders[key] = zeroIds;
+        }
       }
+
+      await api.post('/predictions/standings', {
+        season_id: seasonId,
+        records,
+        divisions: divOrders,
+        seeds: data.seeds,
+      });
+
+      const standingsData = await api.get<StandingsData>(`/predictions/standings/${seasonId}`);
+      setData(standingsData);
+
+      const orders: Record<string, number[]> = {};
+      for (const [key, divTeams] of Object.entries(standingsData.divisions)) {
+        orders[key] = divTeams.map((t) => t.team_id);
+      }
+      setDivisionOrders(orders);
+
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } catch (e) {
+      setErrorMessage(e instanceof Error ? e.message : 'Failed to save standings');
+    } finally {
+      setSaving(false);
     }
-
-    await api.post('/predictions/standings', {
-      season_id: seasonId,
-      records,
-      divisions: divOrders,
-      seeds: data.seeds,
-    });
-
-    // Reload data
-    const standingsData = await api.get<StandingsData>(`/predictions/standings/${seasonId}`);
-    setData(standingsData);
-
-    const orders: Record<string, number[]> = {};
-    for (const [key, divTeams] of Object.entries(standingsData.divisions)) {
-      orders[key] = divTeams.map(t => t.team_id);
-    }
-    setDivisionOrders(orders);
-
-    setSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
   }
 
   if (loading) {
-    return <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-nfl-blue" /></div>;
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-nfl-blue" />
+      </div>
+    );
   }
 
   if (!data || teams.length === 0) {
     return (
       <div className="bg-gridiron-surface p-8 border-2 border-gridiron-border text-center text-text-secondary neumorphic">
-        Seed teams first in Settings
+        Seed teams first in Settings.
       </div>
     );
   }
 
+  const teamById = new Map(teams.map((t) => [t.id, t]));
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <motion.h1
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="text-3xl md:text-5xl lg:text-6xl font-oswald font-bold text-nfl-red uppercase tracking-tight"
-        >
-          Standings & Records
-        </motion.h1>
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+        <div>
+          <p className="text-xs font-mono uppercase tracking-widest text-nfl-blue mb-1">
+            Divisions • Records • Playoff Seeding
+          </p>
+          <h1 className="text-3xl md:text-5xl font-display font-extrabold text-text-primary tracking-tight">
+            Standings & Records
+          </h1>
+        </div>
+        <button
+          type="button"
           onClick={handleSaveAll}
           disabled={saving}
-          className={`text-white px-6 py-3 text-sm font-bold uppercase tracking-wide transition-all ${
-            saving ? 'bg-text-muted' : 'bg-gradient-to-r from-nfl-red to-nfl-blue hover:shadow-glow'
+          className={`inline-flex items-center justify-center gap-2 text-white px-5 py-2.5 text-sm font-semibold uppercase tracking-wider transition-all self-start sm:self-auto ${
+            saving
+              ? 'bg-text-muted'
+              : saved
+                ? 'bg-nfl-green'
+                : 'bg-nfl-green hover:bg-emerald-600'
           }`}
         >
-          {saving ? 'Saving...' : saved ? 'Saved!' : 'Save All'}
-        </motion.button>
+          {saved ? <Check size={16} /> : <Save size={16} />}
+          {saving ? 'Saving...' : saved ? 'Saved' : 'Save All'}
+        </button>
       </div>
+
+      {errorMessage && (
+        <div className="px-4 py-3 border-l-4 border-nfl-red bg-gridiron-surface text-sm text-nfl-red font-medium">
+          {errorMessage}
+        </div>
+      )}
 
       {/* Conferences */}
       {CONFERENCES.map((conf) => (
-        <motion.div
-          key={conf}
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
-        >
-          <h2 className="text-3xl md:text-4xl font-oswald font-bold text-text-primary mb-4 pb-2 border-b-4 border-nfl-blue uppercase tracking-wide">{conf}</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <section key={conf} className="space-y-4">
+          <div className="flex items-baseline justify-between pb-2 border-b-2 border-gridiron-border">
+            <h2 className="text-2xl md:text-3xl font-display font-extrabold text-text-primary tracking-tight flex items-center gap-2.5">
+              <span className={`w-2 h-6 ${conf === 'AFC' ? 'bg-nfl-red' : 'bg-nfl-blue'}`} />
+              {conf} Conference
+            </h2>
+            <span className="text-xs font-mono uppercase tracking-wider text-text-muted">
+              17-Game Regular Season
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
             {DIVISIONS.map((div) => {
               const key = `${conf}-${div}`;
               const teamIds = divisionOrders[key] || [];
@@ -242,18 +261,20 @@ export function Standings() {
 
               return (
                 <div key={div} className="bg-gridiron-surface p-4 border-2 border-gridiron-border neumorphic">
-                  <h3 className="font-oswald font-bold text-sm text-text-secondary uppercase tracking-wide mb-3">{conf} {div}</h3>
+                  <h3 className="font-mono text-xs font-medium text-text-secondary uppercase tracking-widest mb-3 pb-2 border-b border-gridiron-border/70">
+                    {conf} {div}
+                  </h3>
                   <div className="space-y-2">
                     {teamIds.map((teamId, index) => {
-                      const teamData = divTeams.find(t => t.team_id === teamId);
-                      const team = teams.find(t => t.id === teamId);
+                      const teamData = divTeams.find((t) => t.team_id === teamId);
+                      const team = teamById.get(teamId);
                       if (!teamData || !team) return null;
 
                       const hasRecord = teamData.wins > 0 || teamData.losses > 0;
                       const isDraggable = !hasRecord;
 
                       return (
-                        <motion.div
+                        <div
                           key={teamId}
                           draggable={isDraggable}
                           onDragStart={() => isDraggable && handleDragStart(key, index)}
@@ -263,47 +284,56 @@ export function Standings() {
                           onTouchStart={(e) => isDraggable && handleTouchStart(key, index, e)}
                           onTouchMove={(e) => isDraggable && handleTouchMove(key, index, e)}
                           onTouchEnd={isDraggable ? handleTouchEnd : undefined}
-                          whileHover={isDraggable ? { scale: 1.02, x: 3 } : undefined}
-                          className={`flex items-center gap-2 p-2.5 transition-all ${
+                          className={`flex items-center gap-2 p-2 transition-colors ${
                             isDraggable
-                              ? 'bg-gridiron-surface-hover cursor-grab active:cursor-grabbing touch-none border-l-4 border-transparent hover:border-nfl-blue'
+                              ? 'bg-gridiron-surface-hover/80 cursor-grab active:cursor-grabbing touch-none border-l-2 border-transparent hover:border-nfl-blue'
                               : teamData.position === 1
-                                ? 'bg-gridiron-surface-hover border-l-4 border-nfl-yellow'
-                                : 'bg-gridiron-surface-hover border-l-4 border-transparent'
+                                ? 'bg-gridiron-surface-hover border-l-2 border-nfl-yellow'
+                                : 'bg-gridiron-surface-hover/70 border-l-2 border-transparent'
                           }`}
                         >
                           {isDraggable ? (
-                            <GripVertical size={16} className="text-text-muted flex-shrink-0" />
+                            <GripVertical size={14} className="text-text-muted flex-shrink-0" />
                           ) : (
-                            <span className={`w-4 text-center text-xs font-mono font-bold ${
-                              teamData.position === 1 ? 'text-nfl-yellow' : 'text-text-muted'
-                            }`}>{teamData.position}</span>
+                            <span
+                              className={`w-4 text-center text-xs font-mono tabular-nums ${
+                                teamData.position === 1 ? 'text-nfl-yellow font-medium' : 'text-text-muted'
+                              }`}
+                            >
+                              {teamData.position}
+                            </span>
                           )}
 
                           {team.logo_url ? (
-                            <img src={team.logo_url} alt={teamData.team_abbr} className="w-7 h-7 flex-shrink-0 object-contain" />
+                            <img src={team.logo_url} alt={teamData.team_abbr} className="w-6 h-6 flex-shrink-0 object-contain" />
                           ) : (
-                            <div className="w-7 h-7 flex-shrink-0 bg-gridiron-border flex items-center justify-center text-[10px] font-mono text-text-muted">
+                            <div className="w-6 h-6 flex-shrink-0 bg-gridiron-border flex items-center justify-center text-[10px] font-mono text-text-muted">
                               {teamData.team_abbr}
                             </div>
                           )}
 
-                          <span className="flex-1 text-sm md:text-base font-bold text-text-primary uppercase tracking-wide truncate">
+                          <span className="flex-1 min-w-0 text-sm font-semibold text-text-primary truncate">
                             {teamDisplayName(team.city, team.name)}
                           </span>
 
-                          <div className="flex items-center gap-1">
-                            {teamData.position === 1 && <Trophy size={12} className="text-nfl-yellow" />}
+                          <div className="flex items-center gap-1 flex-shrink-0">
+                            {teamData.position === 1 && hasRecord && (
+                              <Trophy size={12} className="text-nfl-yellow mr-0.5" />
+                            )}
                             <input
                               type="number"
                               min="0"
                               max={MAX_GAMES}
                               placeholder="W"
+                              aria-label={`${team.name} predicted wins`}
                               value={teamData.wins || ''}
                               onChange={(e) => {
-                                const val = e.target.value === '' ? '' : Math.min(MAX_GAMES, Math.max(0, parseInt(e.target.value) || 0));
+                                const val =
+                                  e.target.value === ''
+                                    ? ''
+                                    : Math.min(MAX_GAMES, Math.max(0, parseInt(e.target.value, 10) || 0));
                                 const newDivTeams = [...divTeams];
-                                const idx = newDivTeams.findIndex(t => t.team_id === teamId);
+                                const idx = newDivTeams.findIndex((t) => t.team_id === teamId);
                                 if (idx !== -1) {
                                   const maxLosses = MAX_GAMES - (val === '' ? 0 : Number(val));
                                   const currentLosses = newDivTeams[idx].losses;
@@ -315,34 +345,38 @@ export function Standings() {
                                   setData({ ...data, divisions: { ...data.divisions, [key]: newDivTeams } });
                                 }
                               }}
-                              className="w-10 bg-gridiron-bg border-2 border-gridiron-border rounded px-1 py-0.5 text-xs text-center text-text-primary font-mono"
+                              className="w-9 bg-gridiron-bg border border-gridiron-border px-1 py-1 text-xs text-center text-text-primary font-mono tabular-nums"
                             />
-                            <span className="text-text-muted text-xs">-</span>
+                            <span className="text-text-muted text-xs font-mono">-</span>
                             <input
                               type="number"
                               min="0"
                               max={MAX_GAMES}
                               placeholder="L"
+                              aria-label={`${team.name} predicted losses`}
                               value={teamData.losses || ''}
                               onChange={(e) => {
-                                  const val = e.target.value === '' ? '' : Math.min(MAX_GAMES, Math.max(0, parseInt(e.target.value) || 0));
-                                  const newDivTeams = [...divTeams];
-                                  const idx = newDivTeams.findIndex(t => t.team_id === teamId);
-                                  if (idx !== -1) {
-                                    const maxWins = MAX_GAMES - (val === '' ? 0 : Number(val));
-                                    const currentWins = newDivTeams[idx].wins;
-                                    newDivTeams[idx] = {
-                                      ...newDivTeams[idx],
-                                      losses: val === '' ? 0 : Number(val),
-                                      wins: currentWins > maxWins ? maxWins : currentWins,
-                                    };
-                                    setData({ ...data, divisions: { ...data.divisions, [key]: newDivTeams } });
-                                  }
-                                }}
-                                className="w-10 bg-gridiron-bg border-2 border-gridiron-border rounded px-1 py-0.5 text-xs text-center text-text-primary font-mono"
-                              />
-                            </div>
-                        </motion.div>
+                                const val =
+                                  e.target.value === ''
+                                    ? ''
+                                    : Math.min(MAX_GAMES, Math.max(0, parseInt(e.target.value, 10) || 0));
+                                const newDivTeams = [...divTeams];
+                                const idx = newDivTeams.findIndex((t) => t.team_id === teamId);
+                                if (idx !== -1) {
+                                  const maxWins = MAX_GAMES - (val === '' ? 0 : Number(val));
+                                  const currentWins = newDivTeams[idx].wins;
+                                  newDivTeams[idx] = {
+                                    ...newDivTeams[idx],
+                                    losses: val === '' ? 0 : Number(val),
+                                    wins: currentWins > maxWins ? maxWins : currentWins,
+                                  };
+                                  setData({ ...data, divisions: { ...data.divisions, [key]: newDivTeams } });
+                                }
+                              }}
+                              className="w-9 bg-gridiron-bg border border-gridiron-border px-1 py-1 text-xs text-center text-text-primary font-mono tabular-nums"
+                            />
+                          </div>
+                        </div>
                       );
                     })}
                   </div>
@@ -350,92 +384,141 @@ export function Standings() {
               );
             })}
           </div>
-        </motion.div>
+        </section>
       ))}
 
-      {/* Post Season Mockup */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, delay: 0.2 }}
-      >
-        <h2 className="text-3xl md:text-4xl font-oswald font-bold text-text-primary mb-4 pb-2 border-b-4 border-nfl-red uppercase tracking-wide">Post Season Mockup</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Post Season Seeding */}
+      <section className="space-y-4">
+        <div className="flex items-baseline justify-between pb-2 border-b-2 border-gridiron-border">
+          <h2 className="text-2xl md:text-3xl font-display font-extrabold text-text-primary tracking-tight">
+            Playoff Seeding Picture
+          </h2>
+          <span className="text-xs font-mono uppercase tracking-wider text-text-muted">
+            Top 7 per Conference
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {CONFERENCES.map((conf) => {
             const confSeeds = data.seeds[conf] || [];
             return (
-              <div key={conf} className="bg-gridiron-surface p-4 border-2 border-gridiron-border neumorphic">
-                <h3 className="font-oswald font-bold text-lg text-text-primary uppercase tracking-wide mb-3">{conf} Seeds</h3>
+              <div key={conf} className="bg-gridiron-surface p-4 md:p-5 border-2 border-gridiron-border neumorphic">
+                <h3 className="font-display font-bold text-lg text-text-primary tracking-tight mb-3 flex items-center gap-2">
+                  <span className={`w-2 h-4 ${conf === 'AFC' ? 'bg-nfl-red' : 'bg-nfl-blue'}`} />
+                  {conf} Seeds
+                </h3>
                 <div className="space-y-2">
-                  {confSeeds.map((seed) => (
-                    <SeedRow
-                      key={seed.seed}
-                      seed={seed}
-                      wildcardCandidates={data.wildcard_candidates.filter(c => c.conference === conf)}
-                      usedTeamIds={confSeeds.filter(s => s.seed !== seed.seed && s.team_id !== null).map(s => s.team_id as number)}
-                      onSelect={(teamId, record) => {
-                        setData({
-                          ...data,
-                          seeds: {
-                            ...data.seeds,
-                            [conf]: data.seeds[conf].map(s =>
-                              s.seed === seed.seed
-                                ? { ...s, team_id: teamId, team_name: teams.find(t => t.id === teamId)?.name || null, team_abbr: teams.find(t => t.id === teamId)?.abbreviation || null, record }
-                                : s
-                            ),
-                          },
-                        });
-                      }}
-                    />
-                  ))}
+                  {confSeeds.map((seed) => {
+                    const team = seed.team_id ? teamById.get(seed.team_id) : undefined;
+                    return (
+                      <SeedRow
+                        key={seed.seed}
+                        seed={seed}
+                        logoUrl={team?.logo_url ?? null}
+                        wildcardCandidates={data.wildcard_candidates.filter((c) => c.conference === conf)}
+                        usedTeamIds={confSeeds
+                          .filter((s) => s.seed !== seed.seed && s.team_id !== null)
+                          .map((s) => s.team_id as number)}
+                        onSelect={(teamId, record) => {
+                          const picked = teamById.get(teamId);
+                          setData({
+                            ...data,
+                            seeds: {
+                              ...data.seeds,
+                              [conf]: data.seeds[conf].map((s) =>
+                                s.seed === seed.seed
+                                  ? {
+                                      ...s,
+                                      team_id: teamId,
+                                      team_name: picked?.name || null,
+                                      team_abbr: picked?.abbreviation || null,
+                                      record,
+                                    }
+                                  : s
+                              ),
+                            },
+                          });
+                        }}
+                      />
+                    );
+                  })}
                 </div>
               </div>
             );
           })}
         </div>
-      </motion.div>
+      </section>
     </div>
   );
 }
 
-function SeedRow({ seed, wildcardCandidates, usedTeamIds, onSelect }: {
+function SeedRow({
+  seed,
+  logoUrl,
+  wildcardCandidates,
+  usedTeamIds,
+  onSelect,
+}: {
   seed: Seed;
+  logoUrl: string | null;
   wildcardCandidates: Array<{ team_id: number; team_name: string; record: string; conference: string }>;
   usedTeamIds: number[];
   onSelect: (teamId: number, record: string) => void;
 }) {
+  const tierLabel = seed.seed === 1 ? 'BYE' : seed.is_div_winner ? 'DIV' : 'WC';
+  const tierClass =
+    seed.seed === 1
+      ? 'bg-nfl-yellow/20 text-nfl-yellow border-nfl-yellow/40'
+      : seed.is_div_winner
+        ? 'bg-nfl-blue/15 text-nfl-blue border-nfl-blue/30'
+        : 'bg-gridiron-bg text-text-muted border-gridiron-border';
 
   return (
-    <div className={`flex items-center gap-3 p-2.5 rounded transition-all ${
-      seed.is_div_winner ? 'bg-nfl-yellow/10 border border-nfl-yellow/30' : 'bg-gridiron-surface-hover border border-transparent'
-    }`}>
-      <span className={`w-6 text-center text-sm font-mono font-bold ${
-        seed.is_div_winner ? 'text-nfl-yellow' : 'text-text-muted'
-      }`}>
-        {seed.seed <= 3 ? ['🥇', '🥈', '🥉'][seed.seed - 1] : seed.seed}.
+    <div
+      className={`flex items-center gap-3 p-2.5 border transition-colors ${
+        seed.seed === 1
+          ? 'bg-nfl-yellow/5 border-nfl-yellow/35'
+          : seed.is_div_winner
+            ? 'bg-gridiron-surface-hover/80 border-gridiron-border'
+            : 'bg-gridiron-surface-hover/50 border-transparent'
+      }`}
+    >
+      <span className="w-7 text-center text-xs font-mono font-medium text-text-primary tabular-nums">
+        #{seed.seed}
       </span>
-      <span className="flex-1 text-sm font-bold text-text-primary uppercase tracking-wide truncate">
-        {seed.team_name || 'Select team'}
+
+      <span className={`px-1.5 py-0.5 text-[10px] font-mono uppercase tracking-wider border ${tierClass}`}>
+        {tierLabel}
       </span>
-      {seed.record && (
-        <span className="text-xs font-mono font-bold text-text-secondary">
-          {seed.record}
-        </span>
+
+      {logoUrl ? (
+        <img src={logoUrl} alt={seed.team_abbr ?? ''} className="w-6 h-6 object-contain flex-shrink-0" />
+      ) : (
+        <div className="w-6 h-6 border border-dashed border-gridiron-border flex-shrink-0" />
       )}
+
+      <span className="flex-1 text-sm font-semibold text-text-primary truncate">
+        {seed.team_name || 'Select wildcard'}
+      </span>
+
+      {seed.record && (
+        <span className="text-xs font-mono text-text-secondary tabular-nums">{seed.record}</span>
+      )}
+
       {!seed.is_div_winner && (
         <select
           value={seed.team_id ?? ''}
           onChange={(e) => {
             const teamId = Number(e.target.value);
-            const candidate = wildcardCandidates.find(c => c.team_id === teamId);
+            const candidate = wildcardCandidates.find((c) => c.team_id === teamId);
             if (candidate) onSelect(candidate.team_id, candidate.record);
           }}
-          className="bg-gridiron-bg border-2 border-gridiron-border px-2 py-1 text-xs text-text-primary font-bold"
+          className="bg-gridiron-bg border border-gridiron-border px-2 py-1 text-xs text-text-primary font-medium max-w-[150px]"
         >
           <option value="">Select</option>
           {wildcardCandidates
-            .filter(c => !usedTeamIds.includes(c.team_id) || c.team_id === seed.team_id)
-            .map(c => (
+            .filter((c) => !usedTeamIds.includes(c.team_id) || c.team_id === seed.team_id)
+            .map((c) => (
               <option key={c.team_id} value={c.team_id}>
                 {c.team_name} ({c.record})
               </option>

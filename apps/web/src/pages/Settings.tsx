@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
 import { api } from '../lib/api';
 
 interface Season {
@@ -10,6 +9,8 @@ interface Season {
 
 export function Settings() {
   const [seasons, setSeasons] = useState<Season[]>([]);
+  const [teamCount, setTeamCount] = useState<number>(0);
+  const [gameCount, setGameCount] = useState<number>(0);
   const [year, setYear] = useState(2026);
   const [loading, setLoading] = useState(true);
   const [seeding, setSeeding] = useState(false);
@@ -17,13 +18,21 @@ export function Settings() {
   const [message, setMessage] = useState('');
 
   useEffect(() => {
-    loadSeasons();
+    loadData();
   }, []);
 
-  async function loadSeasons() {
+  async function loadData() {
     try {
-      const data = await api.get<Season[]>('/seasons');
-      setSeasons(data);
+      const [seasonsData, teamsData] = await Promise.all([
+        api.get<Season[]>('/seasons'),
+        api.get<Array<{ id: number }>>('/teams'),
+      ]);
+      setSeasons(seasonsData);
+      setTeamCount(teamsData.length);
+      if (seasonsData.length > 0) {
+        const gamesData = await api.get<Array<{ id: number }>>(`/games?season_id=${seasonsData[0].id}`);
+        setGameCount(gamesData.length);
+      }
     } catch {
       // API not ready
     } finally {
@@ -34,8 +43,8 @@ export function Settings() {
   async function createSeason() {
     try {
       await api.post('/seasons', { year });
-      setMessage(`Season ${year} created!`);
-      await loadSeasons();
+      setMessage(`Season ${year} created.`);
+      await loadData();
     } catch (e: unknown) {
       setMessage(`Error: ${e instanceof Error ? e.message : 'Unknown error'}`);
     }
@@ -45,7 +54,8 @@ export function Settings() {
     setSeeding(true);
     try {
       const res = await api.post<{ count: number }>('/teams/seed', {});
-      setMessage(`Seeded ${res.count} NFL teams!`);
+      setMessage(`Seeded ${res.count} NFL teams.`);
+      await loadData();
     } catch (e: unknown) {
       setMessage(`Error: ${e instanceof Error ? e.message : 'Unknown error'}`);
     } finally {
@@ -55,7 +65,7 @@ export function Settings() {
 
   async function importSchedule() {
     if (seasons.length === 0) {
-      setMessage('Create a season first');
+      setMessage('Create a season first.');
       return;
     }
     setImporting(true);
@@ -68,6 +78,7 @@ export function Settings() {
         setMessage(result.error);
       } else {
         setMessage(`Imported ${result.imported} of ${result.total} games from the bundled schedule.`);
+        await loadData();
       }
     } catch (e: unknown) {
       setMessage(`Error importing: ${e instanceof Error ? e.message : 'Unknown error'}. Use manual entry.`);
@@ -78,74 +89,79 @@ export function Settings() {
 
   async function updateStatus(seasonId: number, status: string) {
     await api.patch(`/seasons/${seasonId}`, { status });
-    await loadSeasons();
-    setMessage(`Season status updated to: ${status}`);
+    await loadData();
+    setMessage(`Season status updated to ${status}.`);
   }
 
   if (loading) {
-    return <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-nfl-blue" /></div>;
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-nfl-blue" />
+      </div>
+    );
   }
 
   return (
     <div className="space-y-6 max-w-3xl">
-      <motion.h1 
-        initial={{ opacity: 0, x: -20 }}
-        animate={{ opacity: 1, x: 0 }}
-        className="text-4xl md:text-5xl lg:text-6xl font-serif font-bold gradient-text uppercase tracking-tight"
-      >
-        Settings
-      </motion.h1>
+      <div>
+        <p className="text-xs font-mono uppercase tracking-widest text-nfl-blue mb-1">
+          Configuration & Data
+        </p>
+        <h1 className="text-3xl md:text-5xl font-display font-extrabold text-text-primary tracking-tight">
+          Settings
+        </h1>
+      </div>
 
       {message && (
-        <motion.div 
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-gridiron-surface border-2 border-nfl-blue p-4 text-base text-text-primary neumorphic uppercase tracking-wide font-bold"
-        >
+        <div className="bg-gridiron-surface border-l-4 border-nfl-blue px-4 py-3 text-sm text-text-primary font-medium neumorphic">
           {message}
-        </motion.div>
+        </div>
       )}
 
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-        className="bg-gridiron-surface p-6 border-2 border-gridiron-border neumorphic space-y-5"
-      >
-        <h2 className="text-2xl font-serif font-bold text-text-primary uppercase tracking-wide">Season Setup</h2>
+      {/* Season Setup */}
+      <section className="bg-gridiron-surface p-5 md:p-6 border-2 border-gridiron-border neumorphic space-y-5">
+        <h2 className="text-xl font-display font-bold text-text-primary tracking-tight">Season Setup</h2>
 
-        <div className="flex gap-4 items-end">
+        <div className="flex flex-wrap gap-3 items-end">
           <div>
-            <label className="block text-base text-text-secondary mb-2 font-bold uppercase tracking-wide">Season Year</label>
+            <label className="block text-xs font-mono text-text-secondary mb-1.5 uppercase tracking-wider">
+              Season Year
+            </label>
             <input
               type="number"
               value={year}
               onChange={(e) => setYear(Number(e.target.value))}
-              className="bg-gridiron-bg border-2 border-gridiron-border px-4 py-3 w-40 text-xl text-text-primary font-mono font-bold"
+              className="bg-gridiron-bg border border-gridiron-border px-3.5 py-2.5 w-36 text-lg text-text-primary font-mono tabular-nums"
             />
           </div>
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
+          <button
+            type="button"
             onClick={createSeason}
-            className="bg-gradient-to-r from-nfl-red to-nfl-blue hover:shadow-glow text-white px-6 py-3 text-base font-bold uppercase tracking-wide transition-all"
+            className="bg-gradient-to-r from-nfl-red to-nfl-blue hover:opacity-95 text-white px-5 py-2.5 text-sm font-semibold uppercase tracking-wider transition-all"
           >
             Create Season
-          </motion.button>
+          </button>
         </div>
 
         {seasons.length > 0 && (
-          <div className="space-y-3">
-            <h3 className="text-base font-bold text-text-secondary uppercase tracking-wide">Existing Seasons</h3>
+          <div className="space-y-2.5 pt-2 border-t border-gridiron-border/70">
+            <h3 className="text-xs font-mono text-text-muted uppercase tracking-wider">Existing Seasons</h3>
             {seasons.map((s) => (
-              <div key={s.id} className="flex items-center justify-between bg-gridiron-surface-hover p-4 border-l-4 border-nfl-blue">
-                <span className="text-lg text-text-primary font-bold uppercase tracking-wide">{s.year} Season</span>
-                <div className="flex items-center gap-3">
-                  <span className="text-base bg-gridiron-border px-3 py-1.5 text-text-primary font-bold uppercase">{s.status}</span>
+              <div
+                key={s.id}
+                className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-gridiron-surface-hover p-3.5 border-l-2 border-nfl-blue"
+              >
+                <span className="text-base font-display font-bold text-text-primary tabular-nums">
+                  {s.year} Season
+                </span>
+                <div className="flex items-center gap-2.5">
+                  <span className="text-xs font-mono bg-gridiron-bg border border-gridiron-border px-2.5 py-1 text-text-secondary uppercase">
+                    {s.status}
+                  </span>
                   <select
                     value={s.status}
                     onChange={(e) => updateStatus(s.id, e.target.value)}
-                    className="bg-gridiron-bg border-2 border-gridiron-border px-3 py-1.5 text-base text-text-primary font-bold uppercase"
+                    className="bg-gridiron-bg border border-gridiron-border px-3 py-1.5 text-xs text-text-primary font-semibold uppercase"
                   >
                     <option value="preparing">Preparing</option>
                     <option value="active">Active</option>
@@ -157,66 +173,71 @@ export function Settings() {
             ))}
           </div>
         )}
-      </motion.div>
+      </section>
 
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-        className="bg-gridiron-surface p-6 border-2 border-gridiron-border neumorphic space-y-5"
-      >
-        <h2 className="text-2xl font-serif font-bold text-text-primary uppercase tracking-wide">Data Management</h2>
+      {/* Data Management */}
+      <section className="bg-gridiron-surface p-5 md:p-6 border-2 border-gridiron-border neumorphic space-y-5">
+        <h2 className="text-xl font-display font-bold text-text-primary tracking-tight">Data Management</h2>
 
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-gridiron-border/70">
             <div>
-              <p className="text-lg font-bold text-text-primary uppercase tracking-wide">Seed NFL Teams</p>
-              <p className="text-base text-text-secondary uppercase tracking-wide font-bold">Add all 32 NFL teams to the database</p>
+              <div className="flex items-center gap-2">
+                <p className="text-base font-semibold text-text-primary">Seed NFL Teams</p>
+                <span className="text-xs font-mono text-nfl-green bg-nfl-green/15 px-2 py-0.5 tabular-nums">
+                  {teamCount}/32 loaded
+                </span>
+              </div>
+              <p className="text-sm text-text-secondary mt-0.5">
+                Populate all 32 NFL franchises with conferences, divisions, and ESPN logos.
+              </p>
             </div>
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+            <button
+              type="button"
               onClick={seedTeams}
               disabled={seeding}
-              className="bg-nfl-green hover:shadow-glow-green disabled:opacity-50 text-white px-6 py-3 text-base font-bold uppercase tracking-wide transition-all"
+              className="bg-nfl-green hover:bg-emerald-600 disabled:opacity-50 text-white px-5 py-2.5 text-xs sm:text-sm font-semibold uppercase tracking-wider transition-colors self-start sm:self-auto flex-shrink-0"
             >
               {seeding ? 'Seeding...' : 'Seed Teams'}
-            </motion.button>
+            </button>
           </div>
 
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <p className="text-lg font-bold text-text-primary uppercase tracking-wide">Import Schedule</p>
-              <p className="text-base text-text-secondary uppercase tracking-wide font-bold">Load the bundled full regular season schedule</p>
+              <div className="flex items-center gap-2">
+                <p className="text-base font-semibold text-text-primary">Import Schedule</p>
+                <span className="text-xs font-mono text-nfl-blue bg-nfl-blue/15 px-2 py-0.5 tabular-nums">
+                  {gameCount} games loaded
+                </span>
+              </div>
+              <p className="text-sm text-text-secondary mt-0.5">
+                Load the bundled full 18-week regular season schedule into the active season.
+              </p>
             </div>
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+            <button
+              type="button"
               onClick={importSchedule}
               disabled={importing}
-              className="bg-nfl-blue hover:shadow-glow disabled:opacity-50 text-white px-6 py-3 text-base font-bold uppercase tracking-wide transition-all"
+              className="bg-nfl-blue hover:opacity-90 disabled:opacity-50 text-white px-5 py-2.5 text-xs sm:text-sm font-semibold uppercase tracking-wider transition-opacity self-start sm:self-auto flex-shrink-0"
             >
               {importing ? 'Importing...' : 'Import Schedule'}
-            </motion.button>
+            </button>
           </div>
         </div>
-      </motion.div>
+      </section>
 
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
-        className="bg-gridiron-surface p-6 border-2 border-gridiron-border neumorphic space-y-3"
-      >
-        <h2 className="text-2xl font-serif font-bold text-text-primary uppercase tracking-wide">About</h2>
-        <p className="text-base text-text-secondary uppercase tracking-wide font-bold">
-          Redzone NFL Predictions - Track your NFL season predictions including division winners,
-          weekly game winners, playoff brackets, awards, and team records.
+      {/* About */}
+      <section className="bg-gridiron-surface p-5 md:p-6 border-2 border-gridiron-border neumorphic space-y-2.5">
+        <h2 className="text-xl font-display font-bold text-text-primary tracking-tight">About Redzone NFL</h2>
+        <p className="text-sm text-text-secondary leading-relaxed">
+          Track your NFL season predictions including weekly winners, exact scores, division standings,
+          playoff brackets, and season awards. Weeks roll over automatically Tuesday morning (Europe time)
+          after the final game of the previous week finishes.
         </p>
-        <p className="text-base text-text-secondary uppercase tracking-wide font-bold">
-          Scoring: Exact score = 5pts, Correct winner only = 1pt
+        <p className="text-xs font-mono text-text-muted pt-1">
+          Scoring: Exact score = 5 pts • Correct winner = 1 pt
         </p>
-      </motion.div>
+      </section>
     </div>
   );
 }

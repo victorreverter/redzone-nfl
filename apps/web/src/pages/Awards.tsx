@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
 import { api } from '../lib/api';
 import { teamDisplayName } from '../lib/utils';
-import { Check } from 'lucide-react';
+import { Check, Lock } from 'lucide-react';
 
 interface AwardPred {
   id: number;
@@ -55,7 +54,16 @@ const AWARD_MEDIA: Record<string, AwardMedia> = {
   super_bowl_mvp: { src: '/award-super-bowl-mvp.png', aspectClass: 'aspect-[3/2]', position: 'center center' },
 };
 
-const AWARD_ORDER = ['mvp', 'opoy', 'dpoy', 'offensive_roty', 'defensive_roty', 'coach_of_year', 'comeback_player', 'super_bowl_mvp'];
+const AWARD_ORDER = [
+  'mvp',
+  'opoy',
+  'dpoy',
+  'offensive_roty',
+  'defensive_roty',
+  'coach_of_year',
+  'comeback_player',
+  'super_bowl_mvp',
+];
 
 export function Awards() {
   const [predictions, setPredictions] = useState<AwardPred[]>([]);
@@ -64,6 +72,9 @@ export function Awards() {
   const [loading, setLoading] = useState(true);
   const [forms, setForms] = useState<Record<string, { player_name: string; team_id: number | '' }>>({});
   const [savedAwards, setSavedAwards] = useState<Set<string>>(new Set());
+  const [savingType, setSavingType] = useState<string | null>(null);
+  const [justSavedType, setJustSavedType] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -83,8 +94,7 @@ export function Awards() {
           f[type] = { player_name: pred?.player_name ?? '', team_id: pred?.team_id ?? '' };
         }
         setForms(f);
-        
-        // Track which awards have saved predictions
+
         const saved = new Set<string>();
         for (const pred of predsData) {
           if (pred.player_name && pred.player_name.trim() !== '') {
@@ -103,74 +113,104 @@ export function Awards() {
 
   async function saveAward(awardType: string) {
     if (!seasonId || !forms[awardType]) return;
-    await api.post('/awards', {
-      season_id: seasonId,
-      award_type: awardType,
-      player_name: forms[awardType].player_name,
-      team_id: forms[awardType].team_id || null,
-    });
-    const updated = await api.get<AwardPred[]>(`/awards/${seasonId}`);
-    setPredictions(updated);
-    setSavedAwards(prev => new Set(prev).add(awardType));
+    setSavingType(awardType);
+    setErrorMsg(null);
+    try {
+      await api.post('/awards', {
+        season_id: seasonId,
+        award_type: awardType,
+        player_name: forms[awardType].player_name,
+        team_id: forms[awardType].team_id || null,
+      });
+      const updated = await api.get<AwardPred[]>(`/awards/${seasonId}`);
+      setPredictions(updated);
+      setSavedAwards((prev) => new Set(prev).add(awardType));
+      setJustSavedType(awardType);
+      setTimeout(() => {
+        setJustSavedType((curr) => (curr === awardType ? null : curr));
+      }, 2000);
+    } catch (e) {
+      setErrorMsg(e instanceof Error ? e.message : 'Failed to save award');
+    } finally {
+      setSavingType(null);
+    }
   }
 
   if (loading) {
-    return <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-nfl-blue" /></div>;
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-nfl-blue" />
+      </div>
+    );
   }
+
+  const teamById = new Map(teams.map((t) => [t.id, t]));
 
   return (
     <div className="space-y-6">
-      <motion.h1 
-        initial={{ opacity: 0, x: -20 }}
-        animate={{ opacity: 1, x: 0 }}
-        className="text-4xl md:text-5xl lg:text-6xl font-serif font-bold gradient-text uppercase tracking-tight"
-      >
-        Award Predictions
-      </motion.h1>
-      <p className="text-text-secondary text-base uppercase tracking-wide font-bold">Lock date: Week before NFL announcement</p>
+      <div>
+        <p className="text-xs font-mono uppercase tracking-widest text-nfl-yellow mb-1">
+          Lock Date • Week Before NFL Honors
+        </p>
+        <h1 className="text-3xl md:text-5xl font-display font-extrabold text-text-primary tracking-tight">
+          Award Predictions
+        </h1>
+        <p className="text-sm md:text-base text-text-secondary mt-1.5">
+          Pick your season award winners and optionally tag their team.
+        </p>
+      </div>
+
+      {errorMsg && (
+        <div className="px-4 py-3 border-l-4 border-nfl-red bg-gridiron-surface text-sm text-nfl-red font-medium">
+          {errorMsg}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {AWARD_ORDER.map((type, index) => {
+        {AWARD_ORDER.map((type) => {
           const pred = predictions.find((p) => p.award_type === type);
           const form = forms[type] ?? { player_name: '', team_id: '' };
           const isSaved = savedAwards.has(type);
+          const isSaving = savingType === type;
+          const isJustSaved = justSavedType === type;
           const media = AWARD_MEDIA[type];
           const title = AWARD_TITLES[type];
+          const selectedTeam = form.team_id ? teamById.get(Number(form.team_id)) : undefined;
+
           return (
-            <motion.div 
+            <div
               key={type}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: index * 0.05 }}
-              className={`relative bg-gridiron-surface p-5 border-2 transition-all neumorphic ${
-                isSaved ? 'border-nfl-green shadow-glow-green' : 'border-gridiron-border'
+              className={`relative bg-gridiron-surface p-4 md:p-5 border-2 transition-colors neumorphic flex flex-col ${
+                isSaved ? 'border-nfl-green/60' : 'border-gridiron-border'
               }`}
             >
-              <div className="flex items-start justify-between gap-3 mb-4">
-                <h2 className="min-w-0 font-serif font-bold text-xl text-text-primary uppercase tracking-wide leading-none">
-                  <span>{title.short}</span>
-                  <span className="ml-2 align-middle font-sans text-[10px] sm:text-xs text-text-secondary uppercase tracking-wide leading-none">
-                    ({title.detail})
-                  </span>
-                </h2>
-                <div className="flex items-center gap-3">
-                  {isSaved && (
-                    <motion.div 
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      className="bg-nfl-green p-1.5"
-                    >
-                      <Check size={14} className="text-white" />
-                    </motion.div>
-                  )}
+              <div className="flex items-start justify-between gap-2 mb-3.5">
+                <div className="min-w-0">
+                  <h2 className="font-display font-bold text-xl text-text-primary tracking-tight leading-tight">
+                    {title.short}
+                  </h2>
+                  <p className="text-xs text-text-secondary truncate mt-0.5">{title.detail}</p>
+                </div>
+                <div className="flex items-center gap-1.5 flex-shrink-0">
                   {pred?.locked ? (
-                    <span className="text-sm bg-nfl-red/20 text-nfl-red px-3 py-1 font-mono font-bold uppercase">Locked</span>
+                    <span className="inline-flex items-center gap-1 text-[11px] bg-nfl-red/15 text-nfl-red px-2 py-0.5 font-mono uppercase tracking-wider">
+                      <Lock size={11} />
+                      Locked
+                    </span>
+                  ) : isSaved ? (
+                    <span className="inline-flex items-center gap-1 text-[11px] bg-nfl-green/15 text-nfl-green px-2 py-0.5 font-mono uppercase tracking-wider">
+                      <Check size={11} />
+                      Saved
+                    </span>
                   ) : (
-                    <span className="text-sm bg-nfl-green/20 text-nfl-green px-3 py-1 font-mono font-bold uppercase">Open</span>
+                    <span className="text-[11px] bg-gridiron-surface-hover text-text-muted px-2 py-0.5 font-mono uppercase tracking-wider">
+                      Open
+                    </span>
                   )}
                 </div>
               </div>
-              <div className={`relative mb-4 overflow-hidden border-2 border-gridiron-border bg-gridiron-bg ${media.aspectClass}`}>
+
+              <div className={`relative mb-4 overflow-hidden border border-gridiron-border bg-gridiron-bg ${media.aspectClass}`}>
                 <img
                   src={media.src}
                   alt=""
@@ -178,42 +218,58 @@ export function Awards() {
                   style={{ objectPosition: media.position }}
                   loading="lazy"
                 />
-                <div className="absolute inset-0 bg-gradient-to-r from-gridiron-bg/85 via-gridiron-bg/10 to-transparent pointer-events-none" />
-                <div className="absolute bottom-3 left-3 bg-gridiron-bg/80 border-2 border-gridiron-border px-3 py-1 text-xs text-text-secondary font-mono font-bold uppercase tracking-wide">
-                  Season Award Pick
+                <div className="absolute inset-0 bg-gradient-to-t from-gridiron-bg/85 via-transparent to-transparent pointer-events-none" />
+                <div className="absolute bottom-2.5 left-2.5 flex items-center gap-2 bg-gridiron-bg/90 border border-gridiron-border px-2.5 py-1">
+                  {selectedTeam?.logo_url && (
+                    <img src={selectedTeam.logo_url} alt={selectedTeam.abbreviation} className="w-4 h-4 object-contain" />
+                  )}
+                  <span className="text-[11px] text-text-primary font-mono uppercase tracking-wider">
+                    {selectedTeam ? selectedTeam.abbreviation : title.short}
+                  </span>
                 </div>
               </div>
-              <div className="space-y-3">
+
+              <div className="space-y-2.5 mt-auto">
                 <input
                   type="text"
-                  placeholder="Player name"
+                  placeholder="Player or coach name"
                   value={form.player_name}
                   onChange={(e) => setForms({ ...forms, [type]: { ...form, player_name: e.target.value } })}
-                  className="w-full bg-gridiron-bg border-2 border-gridiron-border px-4 py-3 text-base text-text-primary font-bold"
+                  className="w-full bg-gridiron-bg border border-gridiron-border px-3.5 py-2.5 text-sm text-text-primary font-medium placeholder:text-text-muted"
                   disabled={!!pred?.locked}
                 />
                 <select
                   value={form.team_id}
-                  onChange={(e) => setForms({ ...forms, [type]: { ...form, team_id: e.target.value ? Number(e.target.value) : '' } })}
-                  className="w-full bg-gridiron-bg border-2 border-gridiron-border px-4 py-3 text-base text-text-primary font-bold"
+                  onChange={(e) =>
+                    setForms({
+                      ...forms,
+                      [type]: { ...form, team_id: e.target.value ? Number(e.target.value) : '' },
+                    })
+                  }
+                  className="w-full bg-gridiron-bg border border-gridiron-border px-3.5 py-2.5 text-sm text-text-primary font-medium"
                   disabled={!!pred?.locked}
                 >
                   <option value="">Select team (optional)</option>
                   {teams.map((t) => (
-                    <option key={t.id} value={t.id}>{teamDisplayName(t.city, t.name)}</option>
+                    <option key={t.id} value={t.id}>
+                      {teamDisplayName(t.city, t.name)}
+                    </option>
                   ))}
                 </select>
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
+                <button
+                  type="button"
                   onClick={() => saveAward(type)}
-                  disabled={!!pred?.locked}
-                  className="w-full bg-gradient-to-r from-nfl-red to-nfl-blue hover:shadow-glow disabled:opacity-50 text-white text-base font-bold uppercase tracking-wide py-3 transition-all"
+                  disabled={!!pred?.locked || isSaving}
+                  className={`w-full text-white text-xs font-semibold uppercase tracking-wider py-2.5 transition-all disabled:opacity-50 ${
+                    isJustSaved
+                      ? 'bg-nfl-green'
+                      : 'bg-gradient-to-r from-nfl-red to-nfl-blue hover:opacity-95'
+                  }`}
                 >
-                  {isSaved ? 'Update' : 'Save'}
-                </motion.button>
+                  {isSaving ? 'Saving...' : isJustSaved ? 'Saved!' : isSaved ? 'Update Pick' : 'Save Pick'}
+                </button>
               </div>
-            </motion.div>
+            </div>
           );
         })}
       </div>

@@ -61,32 +61,44 @@ router.get('/:id', async (c) => {
   return c.json(game);
 });
 
+const GAME_DURATION_MS = 4 * 60 * 60 * 1000; // ~4h buffer after last kickoff (e.g. Tue morning Europe time after MNF)
+
 router.get('/current-week/:seasonId', async (c) => {
   const { DB } = c.env;
   const seasonId = c.req.param('seasonId');
 
   const rows = await DB.prepare(
-    'SELECT week, game_time FROM games WHERE season_id = ? ORDER BY week, game_time'
+    'SELECT week, game_time FROM games WHERE season_id = ? AND game_time IS NOT NULL ORDER BY week, game_time'
   ).bind(seasonId).all();
 
   const weeks = rows.results as { week: number; game_time: string }[];
   if (weeks.length === 0) return c.json({ week: 1 });
 
-  const weekStarts = new Map<number, Date>();
+  // Track the latest kickoff time for each week
+  const weekLastKickoff = new Map<number, number>();
   for (const { week, game_time } of weeks) {
-    if (!weekStarts.has(week)) weekStarts.set(week, new Date(game_time));
+    const ts = new Date(game_time).getTime();
+    if (Number.isNaN(ts)) continue;
+    const prev = weekLastKickoff.get(week);
+    if (prev === undefined || ts > prev) {
+      weekLastKickoff.set(week, ts);
+    }
   }
 
-  const now = new Date();
-  const sorted = Array.from(weekStarts.entries()).sort((a, b) => a[1].getTime() - b[1].getTime());
+  const sortedWeeks = Array.from(weekLastKickoff.entries()).sort((a, b) => a[0] - b[0]);
+  if (sortedWeeks.length === 0) return c.json({ week: 1 });
 
-  let currentWeek = sorted[0][0];
-  for (const [week, start] of sorted) {
-    if (start <= now) currentWeek = week;
-    else break;
+  const now = Date.now();
+
+  // Advance to the next week once the previous week's last game is finished (~4h after kickoff,
+  // which lands Tuesday morning Europe time after Monday Night Football), even if scores aren't synced yet.
+  for (const [week, lastKickoff] of sortedWeeks) {
+    if (now < lastKickoff + GAME_DURATION_MS) {
+      return c.json({ week });
+    }
   }
 
-  return c.json({ week: currentWeek });
+  return c.json({ week: sortedWeeks[sortedWeeks.length - 1][0] });
 });
 
 router.get('/team-records/:seasonId', async (c) => {
